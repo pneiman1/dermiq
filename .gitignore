@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+.next/
+out/
+*.log
+
+# Environment & secrets
+.env
+.env.local
+*.pem
+*.key
+secrets/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# dbt
+target/
+dbt_packages/
+logs/
+
+# Data
+data/
+seed_output/
+*.csv
+*.parquet
+*.duckdb
+
+# Airflow
+airflow.cfg
+airflow.db
+webserver_config.py
+*.pid
+
+# Snowflake
+.snowsql/
