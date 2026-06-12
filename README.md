@@ -8,6 +8,16 @@ DermIQ surfaces operational and financial insights from a clinic's EMR, marketin
 
 Early development. The first vertical product on top of [`platform-core`](https://github.com/pneiman1/platform-core).
 
+## Getting started
+
+See [`docs/SETUP.md`](docs/SETUP.md) for the full step-by-step: clone alongside
+platform-core, install both in editable mode, start the Postgres source database,
+and seed ~18 months of synthetic Del Mar Cosmetic Dermatology data.
+
+Architecture decisions specific to DermIQ are logged in
+[`docs/DECISIONS.md`](docs/DECISIONS.md); shared platform decisions live in
+platform-core's decision log.
+
 ## Built for cosmetic dermatology practices that
 
 - Run on Nextech, Modernizing Medicine, or PatientNow
