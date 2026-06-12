@@ -98,6 +98,39 @@ pipeline.
 - (–) The synthetic schema must be kept roughly in sync with real Nextech shapes
   as we learn more; divergence is acceptable since it is only a fixture.
 
+## ADR-003: Source → raw ingestion — least-privilege read, full-refresh, faithful copy
+
+**Date:** 2026-06-12
+**Status:** Accepted
+
+**Context.** The first pipeline step moves data from the Nextech-shaped Postgres
+source into the warehouse raw layer. It should mirror the production read path (a
+clinic's live EMR feed), give dbt a clean starting point, and not leak transform
+logic into ingestion.
+
+**Decision.** `dermiq/ingestion/source_to_raw.py` reads every `nextech_source`
+table via the read-only `dermiq_reader` role and full-refreshes it into
+`DERMIQ_DEV.RAW_<TENANT>` using platform-core's `provision_tenant_schemas` and
+`load_dataframe`. Raw tables are faithful copies of the source plus two lineage
+columns (`_ingested_at`, `_source_table`). Schema naming follows platform-core
+ADR-008; `scripts/ingest_raw.py` is the entry point.
+
+**Alternatives considered.**
+- Incremental / CDC loads: premature at ~18k rows; full-refresh is simpler and
+  trivially correct. Revisit when volumes grow.
+- Connecting as the owner/superuser role: rejected — ingestion only needs SELECT,
+  so it uses the least-privilege reader role.
+- Transform-on-ingest: rejected — keep raw a faithful copy; cleaning/typing and
+  business logic belong in dbt (stg/int/mart).
+
+**Consequences.**
+- (+) Mirrors the production source-read path; idempotent and re-runnable.
+- (+) Raw fidelity, including tz-aware timestamps (TIMESTAMP_LTZ via
+  `use_logical_type`); verified row counts match the source exactly.
+- (+) Lineage columns make raw rows traceable to their source table and load.
+- (–) Full-refresh rewrites whole tables each run — fine now, revisit with
+  incremental loads as data grows.
+
 ## How to add an ADR
 
 Follow the same template platform-core uses:
