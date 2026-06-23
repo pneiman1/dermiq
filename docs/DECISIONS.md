@@ -131,6 +131,74 @@ ADR-008; `scripts/ingest_raw.py` is the entry point.
 - (–) Full-refresh rewrites whole tables each run — fine now, revisit with
   incremental loads as data grows.
 
+## ADR-004: dbt staging layer — one-to-one cleaned/typed views over raw
+
+**Date:** 2026-06-22
+**Status:** Accepted
+
+**Context.** With raw landed (ADR-003), the next step is the dbt project and its
+first transformation layer. Staging is where raw's faithful-but-untyped copy
+becomes a clean, typed, consistently-named foundation that intermediate/mart
+models can build on. It must agree with platform-core on where data lives, carry
+no business logic, and connect to Snowflake without secrets on disk.
+
+**Decision.** Add a dbt project under `transform/` (profile `dermiq`), opt-in via
+a `transform` extra in `pyproject.toml` (dbt-core + dbt-snowflake), driven by a
+`Makefile` (`dbt-debug/deps/run/test/build/docs`).
+
+- **Schema naming.** A custom `generate_schema_name` macro produces
+  `<LAYER>_<TENANT>` (e.g. `STG_DEL_MAR`), mirroring
+  `platform_core.warehouse.schemas.schema_name` rather than dbt's default
+  `<target>_<custom>`. Tenant comes from the `tenant` var (default
+  `DEFAULT_TENANT_ID`), so ingestion (Python) and transformation (dbt) derive
+  identical schema names from one convention.
+- **Env-driven profiles.** `profiles.yml` reads all Snowflake settings via
+  `env_var` (same vars as platform-core Settings); the Makefile loads `.env` and
+  sets `DBT_PROFILES_DIR`. No credentials are committed.
+- **Staging shape.** One view per source table (`stg_nextech__<table>`), built as
+  a `source` → `renamed` CTE pair. Staging only renames and casts — no joins, no
+  business logic (that lives in int/mart). Conventions: trim text, lowercase
+  emails; disambiguate bare generic names with an entity prefix
+  (`status`→`appointment_status`, `role`→`provider_role`, `category`→
+  `service_category`); rename `active`→`is_active`, `address_zip`→`zip_code`;
+  derive `is_deleted` from `deleted_at` (soft-deletes kept, not filtered); drop
+  the redundant `_source_table` lineage column and keep `_ingested_at` as
+  `ingested_at`.
+- **Money precision.** Monetary columns cast to `number(18, 4)` (not the source's
+  `number(10, 2)`) to absorb FX precision and aggregate overflow downstream.
+- **Tests.** `unique`/`not_null` on every PK and `relationships` on every FK at
+  `severity: error`; `accepted_values` on enums at `severity: warn` — enum drift
+  in real clinic data should be *visible*, not a pipeline-breaking failure.
+- **All-null source columns.** `npi_number`/`hire_date`/`termination_date` are
+  unpopulated in the seed, so `write_pandas` lands them as `NUMBER` in raw and a
+  direct `NUMBER → DATE` cast is illegal. Staging bridges through `varchar` with
+  `try_cast`, which is correct whether or not real values appear later.
+
+**Alternatives considered.**
+- **dbt default schema naming** (`<target>_<custom>`): rejected — would diverge
+  from the `<LAYER>_<TENANT>` convention ingestion already writes to, breaking the
+  single source of truth for schema location.
+- **Tables/materialized views for staging**: rejected — staging is a thin
+  rename/cast pass; views are cheap, always-fresh, and storage-free.
+- **`accepted_values` at `error`**: rejected — a new legitimate enum value (e.g. a
+  new payment method) would fail the whole build; `warn` surfaces drift without
+  blocking.
+- **Filtering soft-deleted patients in staging**: rejected — staging stays a
+  faithful 1:1 of source rows; deletion filtering is a downstream (int/mart)
+  concern. `is_deleted` makes that filter readable when it happens.
+
+**Consequences.**
+- (+) `make dbt-build` is green: 5 models + 31 tests, 0 failures, 0 warnings.
+- (+) dbt and ingestion share one schema-naming convention; profiles carry no
+  secrets.
+- (+) Downstream layers get typed, consistently-named, test-covered inputs.
+- (–) The `NUMBER → DATE` bridge is a workaround for a raw-layer fidelity gap:
+  all-null columns lose their type at ingest. If those columns are ever populated,
+  the raw type will shift — candidate for an ingestion fix (explicit dtypes) and a
+  future ADR.
+- (–) Staging schema is hand-maintained per source table; a source contract / code
+  generation could reduce drift as table count grows.
+
 ## How to add an ADR
 
 Follow the same template platform-core uses:

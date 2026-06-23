@@ -26,6 +26,14 @@ dev = [
     "black>=24.2",
 ]
 
+# dbt transformation toolchain. Heavy (dbt-core + the Snowflake adapter pull in
+# many transitive deps), so it is opt-in — only contributors working on the dbt
+# project need it, not those touching app/ingestion code.
+transform = [
+    "dbt-core>=1.8",
+    "dbt-snowflake>=1.8",
+]
+
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"

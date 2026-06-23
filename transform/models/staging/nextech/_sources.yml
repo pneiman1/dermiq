@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: nextech
+    description: >
+      Faithful raw copy of the Nextech-shaped source EMR, landed by the ingestion
+      job into RAW_<TENANT>. Column names are uppercased; tz-aware timestamps are
+      TIMESTAMP_TZ. Two lineage columns are added at load time: _ingested_at and
+      _source_table.
+    database: "{{ env_var('SNOWFLAKE_DATABASE', 'DERMIQ_DEV') }}"
+    schema: "RAW_{{ env_var('DEFAULT_TENANT_ID', 'del_mar') | upper }}"
+    config:
+      # Stamped once per ingestion run on every row; drives source freshness.
+      loaded_at_field: _ingested_at
+    tables:
+      - name: providers
+        description: One row per clinician/provider at the practice.
+      - name: services
+        description: Service/procedure catalog with default price and cost.
+      - name: patients
+        description: One row per patient; soft-deleted via deleted_at.
+      - name: appointments
+        description: Scheduled visits with status and actual arrival/departure.
+      - name: transactions
+        description: Line-item revenue events tied to patient, provider, service.

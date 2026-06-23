@@ -1,0 +1,37 @@
+# DermIQ dbt project.
+#
+# Transforms the raw Snowflake layer (landed by the ingestion job) up through the
+# medallion stack: staging -> intermediate -> marts. Schema names follow the
+# platform-core convention <LAYER>_<TENANT> (e.g. STG_DEL_MAR); see the
+# generate_schema_name macro override, which mirrors platform_core.warehouse.schemas.
+name: "dermiq"
+version: "1.0.0"
+config-version: 2
+
+profile: "dermiq"
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+require-dbt-version: ">=1.8.0"
+
+# Tenant whose medallion schemas this run targets. Drives both the source schema
+# (RAW_<TENANT>) and the generated stg/int/mart schema names. Defaults to the
+# local-dev tenant; override with DEFAULT_TENANT_ID.
+vars:
+  tenant: "{{ env_var('DEFAULT_TENANT_ID', 'del_mar') }}"
+
+models:
+  dermiq:
+    staging:
+      # Staging is a thin, cheap rename/cast layer over raw -> views.
+      +materialized: view
+      +schema: stg

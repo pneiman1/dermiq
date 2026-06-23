@@ -1,0 +1,21 @@
+# dbt connection profile for DermIQ — fully env-driven so no secrets live on disk.
+#
+# The same env vars feed platform-core's Settings (see .env.example), so ingestion
+# (Python) and transformation (dbt) point at the same Snowflake account/database.
+# The Makefile loads .env and sets DBT_PROFILES_DIR to this directory.
+dermiq:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'ACCOUNTADMIN') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'DERMIQ_DEV') }}"
+      # Fallback schema used only when a model declares no custom +schema; real
+      # models route through generate_schema_name to <LAYER>_<TENANT>.
+      schema: "STG_{{ env_var('DEFAULT_TENANT_ID', 'del_mar') | upper }}"
+      threads: 4
+      client_session_keep_alive: false

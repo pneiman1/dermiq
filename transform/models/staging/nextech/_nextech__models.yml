@@ -1,0 +1,215 @@
+version: 2
+
+models:
+  - name: stg_nextech__providers
+    description: One row per clinician/provider; typed and renamed from raw.
+    columns:
+      - name: provider_id
+        description: Primary key.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: provider_role
+        description: Provider role (renamed from source `role` to avoid collision).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["MD", "DO", "PA", "Aesthetician"]
+              config:
+                severity: warn
+
+  - name: stg_nextech__services
+    description: Service/procedure catalog; typed and renamed from raw.
+    columns:
+      - name: service_code
+        description: Primary key.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: service_category
+        description: Service category (renamed from source `category`).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  ["injectable", "energy_device", "skincare_retail", "membership", "surgical", "consult"]
+              config:
+                severity: warn
+      - name: is_active
+        description: Whether the service is currently offered.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+
+  - name: stg_nextech__patients
+    description: One row per patient; soft-deleted via deleted_at / is_deleted.
+    columns:
+      - name: patient_id
+        description: Primary key.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: gender
+        description: Patient gender (nullable).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["F", "M"]
+              config:
+                severity: warn
+      - name: source_channel
+        description: Patient acquisition channel.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  ["google_ads", "instagram_meta", "referral", "realself", "alle_directory", "walkin", "other"]
+              config:
+                severity: warn
+      - name: is_deleted
+        description: Derived flag — true when deleted_at is not null.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+
+  - name: stg_nextech__appointments
+    description: Scheduled visits with status and actual arrival/departure.
+    columns:
+      - name: appointment_id
+        description: Primary key.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: patient_id
+        description: FK to stg_nextech__patients.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__patients')
+                field: patient_id
+              config:
+                severity: error
+      - name: provider_id
+        description: FK to stg_nextech__providers.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__providers')
+                field: provider_id
+              config:
+                severity: error
+      - name: appointment_status
+        description: Visit status (renamed from source `status`).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["completed", "no_show", "cancelled"]
+              config:
+                severity: warn
+      - name: appointment_type
+        description: Type of appointment.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["standard"]
+              config:
+                severity: warn
+
+  - name: stg_nextech__transactions
+    description: Line-item revenue events tied to patient, provider, service.
+    columns:
+      - name: transaction_id
+        description: Primary key.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: patient_id
+        description: FK to stg_nextech__patients.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__patients')
+                field: patient_id
+              config:
+                severity: error
+      - name: appointment_id
+        description: FK to stg_nextech__appointments (nullable).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__appointments')
+                field: appointment_id
+              config:
+                severity: error
+      - name: provider_id
+        description: FK to stg_nextech__providers.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__providers')
+                field: provider_id
+              config:
+                severity: error
+      - name: service_code
+        description: FK to stg_nextech__services.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__services')
+                field: service_code
+              config:
+                severity: error
+      - name: service_category
+        description: Denormalized service category.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  ["injectable", "energy_device", "skincare_retail", "membership", "surgical", "consult"]
+              config:
+                severity: warn
+      - name: payment_method
+        description: Method of payment.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["card", "cash", "carecredit"]
+              config:
+                severity: warn
