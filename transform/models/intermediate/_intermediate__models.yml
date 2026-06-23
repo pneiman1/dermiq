@@ -1,0 +1,139 @@
+version: 2
+
+models:
+  - name: int_visit_economics
+    description: One row per completed appointment with revenue, category split, cross-sell flags, and duration.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "net_revenue >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "line_item_count >= 1"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "actual_duration_min >= 0"
+    columns:
+      - name: appointment_id
+        description: Grain — one row per completed appointment.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+
+  - name: int_appointment_disposition
+    description: One row per scheduled appointment (any status) with its disposition flags.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "is_completed::int + is_no_show::int + is_cancelled::int = 1"
+    columns:
+      - name: appointment_id
+        description: Grain — one row per scheduled appointment.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: patient_id
+        description: FK to stg_nextech__patients.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__patients')
+                field: patient_id
+              config:
+                severity: error
+      - name: provider_id
+        description: FK to stg_nextech__providers.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__providers')
+                field: provider_id
+              config:
+                severity: error
+
+  - name: int_patient_lifetime_value
+    description: One row per patient with lifetime aggregates, annualized run-rate, and derived tiers.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "total_revenue >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "total_visits >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "recency_days >= 0"
+    columns:
+      - name: patient_id
+        description: Grain — one row per patient.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: recency_tier
+        description: active / lapsing / lapsed / dormant; null for never-visited.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["active", "lapsing", "lapsed", "dormant"]
+              config:
+                severity: warn
+      - name: ltv_tier
+        description: vip / high / standard / low on annualized run-rate; unknown for never-visited.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["vip", "high", "standard", "low", "unknown"]
+              config:
+                severity: warn
+
+  - name: int_provider_daily
+    description: One row per provider per day with productivity and cross-sell metrics.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["provider_id", "date_key"]
+          config:
+            severity: error
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "productive_hours between 0 and 24"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "revenue_per_hour >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "cross_sell_rate between 0 and 1"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "skincare_attach_rate between 0 and 1"
+    columns:
+      - name: provider_id
+        description: Grain part — provider.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+      - name: date_key
+        description: Grain part — calendar day of the visits.
+        data_tests:
+          - not_null:
+              config:
+                severity: error

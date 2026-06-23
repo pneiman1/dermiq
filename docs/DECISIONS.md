@@ -199,6 +199,50 @@ a `transform` extra in `pyproject.toml` (dbt-core + dbt-snowflake), driven by a
 - (–) Staging schema is hand-maintained per source table; a source contract / code
   generation could reduce drift as table count grows.
 
+## ADR-005: Ingestion must declare explicit Snowflake column types (tech-debt:ingestion)
+
+**Date:** 2026-06-23
+**Status:** Accepted — tracked tech-debt. **Blocking dependency for chunk-6
+(Airflow / production ingestion): must be resolved before chunk-6 starts.**
+
+**Tag:** `tech-debt:ingestion`
+
+**Context.** `platform_core.warehouse.load.load_dataframe` lets
+`write_pandas(..., auto_create_table=True)` infer raw column types from the
+pandas DataFrame's dtypes. Inference is data-dependent: a column that is all-NULL
+(or happens to be all-numeric) in a given load lands with the wrong Snowflake
+type. Discovered in chunk-3 (ADR-004): `providers.npi_number`, `hire_date`, and
+`termination_date` are unpopulated in the seed, so they landed as `NUMBER`, and a
+`NUMBER → DATE` cast in `stg_nextech__providers` is illegal — worked around there
+with a `varchar` bridge.
+
+The deeper problem is **non-determinism**: the raw schema for a table can change
+between loads depending on null density / value shape, which is unacceptable once
+ingestion runs unattended on a schedule (chunk-6). A scheduled load that silently
+changes a raw column's type can break every downstream model.
+
+**Decision.** Before chunk-6, ingestion must declare an explicit per-source-table
+column-type map (the source's known schema) and create/align raw tables from that
+map, rather than relying on `write_pandas` inference. Raw types must be
+deterministic regardless of the data in any single load. This supersedes the
+inference behavior described in ADR-003 for the production path; the chunk-3
+staging `varchar` bridge (ADR-004) is a stopgap until this lands.
+
+**Alternatives considered.**
+- **Keep casting around it in staging forever:** rejected — every all-NULL column
+  is a latent landmine, and staging would accrete defensive casts that hide a real
+  ingestion defect.
+- **Enforce `NOT NULL` upstream so inference always has values:** rejected — sparse
+  columns (optional NPI, termination dates) are legitimately null; the source must
+  be allowed to carry them.
+
+**Consequences.**
+- (+) Deterministic raw schemas across loads — safe for unattended scheduling.
+- (+) Removes the need for type-bridging workarounds in staging over time.
+- (–) Ingestion must define and maintain explicit type maps per source table.
+- (–) Until resolved, chunk-6 is gated: do not wire scheduled ingestion before this
+  is fixed.
+
 ## How to add an ADR
 
 Follow the same template platform-core uses:

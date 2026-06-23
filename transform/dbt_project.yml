@@ -35,3 +35,8 @@ models:
       # Staging is a thin, cheap rename/cast layer over raw -> views.
       +materialized: view
       +schema: stg
+    intermediate:
+      # Reusable analytical building blocks queried by multiple marts ->
+      # materialized as tables for consistent downstream performance.
+      +materialized: table
+      +schema: int
