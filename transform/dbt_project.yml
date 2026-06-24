@@ -40,3 +40,17 @@ models:
       # materialized as tables for consistent downstream performance.
       +materialized: table
       +schema: int
+    marts:
+      # Purpose-built tables per consumer (dashboard tab / RAG). Tables, and
+      # clustered by date where there is a real date grain (set per-model).
+      +materialized: table
+      +schema: mart
+
+seeds:
+  dermiq:
+    # Static reference fixtures live in their own SEED_<TENANT> schema.
+    +schema: seed
+    marketing_spend:
+      +column_types:
+        month_start: date
+        spend_usd: number(12, 2)

@@ -1,0 +1,34 @@
+version: 2
+
+seeds:
+  - name: marketing_spend
+    description: >
+      Monthly marketing spend per acquisition channel (fixture). Derived from
+      catalog ACQUISITION_CHANNELS annual_spend_usd / 12 with ±15% seasonal
+      variation. One row per channel per month over the trailing 18 months.
+      Consumed by mart_channel_attribution for CAC / LTV:CAC.
+    columns:
+      - name: channel
+        description: Acquisition channel; matches stg patient source_channel domain.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - accepted_values:
+              arguments:
+                values:
+                  ["google_ads", "instagram_meta", "referral", "realself", "alle_directory", "walkin", "other"]
+              config:
+                severity: error
+      - name: month_start
+        description: First day of the spend month.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+      - name: spend_usd
+        description: Spend for the channel in that month, USD.
+        data_tests:
+          - not_null:
+              config:
+                severity: error

@@ -42,6 +42,8 @@ seed_output/
 *.csv
 *.parquet
 *.duckdb
+# ...but dbt seed fixtures are source, not generated data — keep them tracked.
+!transform/seeds/*.csv
 
 # Airflow
 airflow.cfg

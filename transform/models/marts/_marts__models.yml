@@ -1,0 +1,110 @@
+version: 2
+
+models:
+  - name: mart_revenue_daily
+    description: One row per calendar day — revenue, category split, volume, funnel.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "net_revenue >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "no_show_rate between 0 and 1"
+    columns:
+      - name: date_day
+        description: Grain — calendar day.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+
+  - name: mart_provider_scorecard
+    description: One row per provider — TTM-primary performance with all-time context.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "revenue_ttm >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "cross_sell_rate_ttm between 0 and 1"
+    columns:
+      - name: provider_id
+        description: Grain — provider.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+
+  - name: mart_channel_attribution
+    description: One row per acquisition channel — TTM cohort economics, spend, CAC, LTV:CAC.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "patients_acquired_ttm >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "spend_ttm >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "cac_ttm >= 0"
+    columns:
+      - name: acquisition_channel
+        description: Grain — acquisition channel.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: channel_health
+        description: organic / excellent / healthy / marginal / unprofitable.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["organic", "excellent", "healthy", "marginal", "unprofitable"]
+              config:
+                severity: warn
+
+  - name: mart_recall_queue
+    description: One row per lapsing/lapsed patient to recall, with contact, last provider, and priority.
+    columns:
+      - name: patient_id
+        description: Grain — patient.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: recency_tier
+        description: Restricted to lapsing/lapsed by the recall filter.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["lapsing", "lapsed"]
+              config:
+                severity: warn
+      - name: ltv_tier
+        description: vip / high / standard / low (never-visited excluded by filter).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["vip", "high", "standard", "low"]
+              config:
+                severity: warn
+      - name: recall_priority
+        description: urgent / high / medium / low.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["urgent", "high", "medium", "low"]
+              config:
+                severity: warn

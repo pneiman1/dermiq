@@ -15,7 +15,7 @@ DBT := $(CURDIR)/.venv/bin/dbt
 DBT_DIR := $(CURDIR)/transform
 export DBT_PROFILES_DIR := $(CURDIR)/transform
 
-.PHONY: dbt-debug dbt-deps dbt-run dbt-test dbt-build dbt-docs
+.PHONY: dbt-debug dbt-deps dbt-seed dbt-run dbt-test dbt-build dbt-docs
 
 # Validate config + warehouse connectivity.
 dbt-debug:
@@ -24,6 +24,11 @@ dbt-debug:
 # Install package dependencies (dbt_utils, etc.) into dbt_packages/.
 dbt-deps:
 	cd $(DBT_DIR) && $(DBT) deps
+
+# Load CSV seeds (e.g. marketing_spend) into the warehouse. Note: `dbt build`
+# already runs seeds in DAG order, so this is for loading seeds on their own.
+dbt-seed:
+	cd $(DBT_DIR) && $(DBT) seed
 
 # Build models only.
 dbt-run:
