@@ -19,7 +19,8 @@ ttm as (
         sum(net_revenue)                    as revenue_ttm,
         count(distinct visit_date)          as active_days_ttm,
         sum(actual_duration_min) / 60.0     as productive_hours_ttm,
-        count_if(had_cross_sell)            as cross_sell_visits_ttm
+        count_if(had_cross_sell)            as cross_sell_visits_ttm,
+        count_if(had_skincare)              as skincare_visits_ttm
     from visits
     where visit_date >= dateadd('month', -12, current_date)
     group by 1
@@ -51,6 +52,7 @@ final as (
         cast(t.revenue_ttm / nullif(t.visits_ttm, 0) as number(18, 4))         as avg_ticket_ttm,
         cast(t.revenue_ttm / nullif(t.productive_hours_ttm, 0) as number(18, 4)) as revenue_per_hour_ttm,
         cast(t.cross_sell_visits_ttm / nullif(t.visits_ttm, 0) as number(10, 4)) as cross_sell_rate_ttm,
+        cast(t.skincare_visits_ttm / nullif(t.visits_ttm, 0) as number(10, 4)) as skincare_attach_rate_ttm,
         cast(coalesce(t.productive_hours_ttm, 0) as number(10, 2))  as productive_hours_ttm,
         coalesce(t.active_days_ttm, 0)                              as active_days_ttm,
 

@@ -30,6 +30,9 @@ models:
       - dbt_utils.expression_is_true:
           arguments:
             expression: "cross_sell_rate_ttm between 0 and 1"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "skincare_attach_rate_ttm between 0 and 1"
     columns:
       - name: provider_id
         description: Grain — provider.
