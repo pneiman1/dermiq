@@ -22,6 +22,8 @@ from platform_core.utils.logging import get_logger
 from platform_core.warehouse.load import load_dataframe
 from platform_core.warehouse.schemas import provision_tenant_schemas, schema_name
 
+from dermiq.ingestion.types import build_create_table_ddl, raw_columns
+
 log = get_logger(__name__)
 
 SOURCE_SCHEMA = "nextech_source"
@@ -64,6 +66,24 @@ def read_source_table(
     return df
 
 
+def create_raw_table(
+    sf_conn: SnowflakeConnection,
+    table: str,
+    *,
+    schema: str,
+    database: str,
+) -> None:
+    """Create (or replace) the raw table with explicit column types from the map.
+
+    Replacing rather than inferring makes the raw schema deterministic regardless
+    of the data in any single load (ADR-005).
+    """
+    ddl = build_create_table_ddl(table, database=database, schema=schema)
+    with sf_conn.cursor() as cur:
+        cur.execute(ddl)
+    log.info("create_raw_table", table=table, schema=schema)
+
+
 def ingest_source_to_raw(
     sf_conn: SnowflakeConnection,
     *,
@@ -75,7 +95,9 @@ def ingest_source_to_raw(
     Provisions the tenant's medallion schemas (idempotent), then full-refreshes
     each source table into ``RAW_<TENANT>``. Returns ``{table: rows_loaded}``.
     """
-    tenant = tenant_id or get_settings().default_tenant_id
+    settings = get_settings()
+    tenant = tenant_id or settings.default_tenant_id
+    database = settings.snowflake_database
     provision_tenant_schemas(sf_conn, tenant)
     raw_schema = schema_name("raw", tenant)
 
@@ -86,7 +108,19 @@ def ingest_source_to_raw(
     with psycopg2.connect(source_reader_url) as pg_conn:
         for table in SOURCE_TABLES:
             df = read_source_table(pg_conn, table, ingested_at=ingested_at)
-            counts[table] = load_dataframe(sf_conn, df, table=table, schema=raw_schema)
+            # Align to the explicit type map (order + names) so the DataFrame
+            # matches the table we create; a missing mapped column fails loudly.
+            df = df[[col for col, _ in raw_columns(table)]]
+            # Create the typed table, then append — no pandas dtype inference.
+            create_raw_table(sf_conn, table, schema=raw_schema, database=database)
+            counts[table] = load_dataframe(
+                sf_conn,
+                df,
+                table=table,
+                schema=raw_schema,
+                auto_create_table=False,
+                overwrite=False,
+            )
 
     log.info(
         "ingest_source_to_raw_complete",

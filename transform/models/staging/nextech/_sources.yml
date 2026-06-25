@@ -15,6 +15,31 @@ sources:
     tables:
       - name: providers
         description: One row per clinician/provider at the practice.
+        columns:
+          # Contract guard (ADR-005): these columns are sparse/all-NULL in the
+          # source, so they are exactly the ones that silently mis-type if
+          # ingestion regresses to pandas inference. error severity = hard fail.
+          - name: npi_number
+            data_tests:
+              - source_column_data_type:
+                  arguments:
+                    expected_type: VARCHAR
+                  config:
+                    severity: error
+          - name: hire_date
+            data_tests:
+              - source_column_data_type:
+                  arguments:
+                    expected_type: DATE
+                  config:
+                    severity: error
+          - name: termination_date
+            data_tests:
+              - source_column_data_type:
+                  arguments:
+                    expected_type: DATE
+                  config:
+                    severity: error
       - name: services
         description: Service/procedure catalog with default price and cost.
       - name: patients

@@ -202,8 +202,11 @@ a `transform` extra in `pyproject.toml` (dbt-core + dbt-snowflake), driven by a
 ## ADR-005: Ingestion must declare explicit Snowflake column types (tech-debt:ingestion)
 
 **Date:** 2026-06-23
-**Status:** Accepted — tracked tech-debt. **Blocking dependency for chunk-6
-(Airflow / production ingestion): must be resolved before chunk-6 starts.**
+**Status:** Resolved (2026-06-24) by chunk-5.5 — ingestion now creates raw tables
+from an explicit per-table type map (`dermiq/ingestion/types.py`) instead of pandas
+inference, guarded by a Snowflake-gated integration test and a dbt
+`source_column_data_type` contract test in the production build. The orchestration
+blocker this raised is cleared (Airflow is now chunk-8).
 
 **Tag:** `tech-debt:ingestion`
 

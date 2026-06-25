@@ -49,3 +49,9 @@ target-version = "py311"
 
 [tool.black]
 line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that require live Snowflake credentials (skipped without them)",
+]
