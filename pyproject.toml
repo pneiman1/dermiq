@@ -26,6 +26,14 @@ dev = [
     "black>=24.2",
 ]
 
+# FastAPI backend serving the marts to the frontend. Opt-in — only contributors
+# working on the API need it.
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "httpx>=0.27",
+]
+
 # dbt transformation toolchain. Heavy (dbt-core + the Snowflake adapter pull in
 # many transitive deps), so it is opt-in — only contributors working on the dbt
 # project need it, not those touching app/ingestion code.

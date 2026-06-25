@@ -1,0 +1,153 @@
+"""Data endpoints over the marts (and a couple of intermediate models for grains
+the marts don't expose). Every endpoint is tenant-gated via current_tenant and
+uses a per-request cursor off the shared connection."""
+from __future__ import annotations
+
+from datetime import date, timedelta
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Query
+from snowflake.connector.cursor import SnowflakeCursor
+
+from dermiq.api.deps import current_tenant, db_cursor, fetch_models
+from dermiq.api.fqn import fq
+from dermiq.api.schemas import (
+    AcquisitionByMonthRow,
+    ChannelAttributionRow,
+    DispositionDailyRow,
+    ProviderRevenueDailyRow,
+    ProviderScorecardRow,
+    RecallQueueRow,
+    RevenueDailyRow,
+)
+
+router = APIRouter(tags=["marts"])
+
+# recall_priority ordering for filter (>=) and sort.
+PRIORITY_RANK = {"urgent": 4, "high": 3, "medium": 2, "low": 1}
+
+# SQL fragment ranking recall_priority; reused in WHERE and ORDER BY.
+_PRIORITY_CASE = (
+    "case recall_priority when 'urgent' then 4 when 'high' then 3 "
+    "when 'medium' then 2 else 1 end"
+)
+
+
+def _date_range(start: date | None, end: date | None) -> tuple[date, date]:
+    """Default to the last 90 days when bounds are omitted."""
+    end = end or date.today()
+    start = start or (end - timedelta(days=90))
+    return start, end
+
+
+@router.get("/revenue/daily", response_model=list[RevenueDailyRow])
+def revenue_daily(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+) -> list[RevenueDailyRow]:
+    start, end = _date_range(start_date, end_date)
+    sql = (
+        f"select * from {fq('mart', 'mart_revenue_daily', tenant)} "
+        "where date_day between %s and %s order by date_day desc"
+    )
+    return fetch_models(cur, sql, (start, end), RevenueDailyRow)
+
+
+@router.get("/providers/scorecard", response_model=list[ProviderScorecardRow])
+def providers_scorecard(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+) -> list[ProviderScorecardRow]:
+    sql = (
+        f"select * from {fq('mart', 'mart_provider_scorecard', tenant)} "
+        "order by revenue_per_hour_ttm desc nulls last"
+    )
+    return fetch_models(cur, sql, (), ProviderScorecardRow)
+
+
+@router.get(
+    "/providers/{provider_id}/revenue-daily",
+    response_model=list[ProviderRevenueDailyRow],
+)
+def provider_revenue_daily(
+    provider_id: str,
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+) -> list[ProviderRevenueDailyRow]:
+    start, end = _date_range(start_date, end_date)
+    sql = (
+        f"select * from {fq('int', 'int_provider_daily', tenant)} "
+        "where provider_id = %s and date_key between %s and %s order by date_key"
+    )
+    return fetch_models(cur, sql, (provider_id, start, end), ProviderRevenueDailyRow)
+
+
+@router.get("/channels/attribution", response_model=list[ChannelAttributionRow])
+def channels_attribution(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+) -> list[ChannelAttributionRow]:
+    sql = (
+        f"select * from {fq('mart', 'mart_channel_attribution', tenant)} "
+        "order by patients_acquired_ttm desc"
+    )
+    return fetch_models(cur, sql, (), ChannelAttributionRow)
+
+
+@router.get("/channels/acquisition-by-month", response_model=list[AcquisitionByMonthRow])
+def acquisition_by_month(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+    months: int = Query(18, ge=1, le=60),
+) -> list[AcquisitionByMonthRow]:
+    sql = (
+        "select date_trunc('month', first_visit_date)::date as month_start, "
+        "acquisition_channel as channel, count(*) as patient_count "
+        f"from {fq('int', 'int_patient_lifetime_value', tenant)} "
+        "where first_visit_date is not null "
+        "and first_visit_date >= dateadd('month', %s, date_trunc('month', current_date)) "
+        "group by 1, 2 order by 1, 2"
+    )
+    return fetch_models(cur, sql, (-months,), AcquisitionByMonthRow)
+
+
+@router.get("/recall/queue", response_model=list[RecallQueueRow])
+def recall_queue(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+    limit: int = Query(100, ge=1, le=1000),
+    min_priority: Literal["urgent", "high", "medium", "low"] = "low",
+) -> list[RecallQueueRow]:
+    sql = (
+        f"select * from {fq('mart', 'mart_recall_queue', tenant)} "
+        f"where {_PRIORITY_CASE} >= %s "
+        f"order by {_PRIORITY_CASE} desc, last_visit_date asc "
+        "limit %s"
+    )
+    return fetch_models(cur, sql, (PRIORITY_RANK[min_priority], limit), RecallQueueRow)
+
+
+@router.get("/flow/dispositions", response_model=list[DispositionDailyRow])
+def flow_dispositions(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+) -> list[DispositionDailyRow]:
+    start, end = _date_range(start_date, end_date)
+    sql = (
+        "select scheduled_date as day, "
+        "count_if(is_completed) as completed, "
+        "count_if(is_no_show) as no_show, "
+        "count_if(is_cancelled) as cancelled, "
+        "count(*) as total, "
+        "count_if(is_no_show) / nullif(count(*), 0) as no_show_rate, "
+        "count_if(is_cancelled) / nullif(count(*), 0) as cancel_rate "
+        f"from {fq('int', 'int_appointment_disposition', tenant)} "
+        "where scheduled_date between %s and %s group by 1 order by 1"
+    )
+    return fetch_models(cur, sql, (start, end), DispositionDailyRow)

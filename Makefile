@@ -15,7 +15,12 @@ DBT := $(CURDIR)/.venv/bin/dbt
 DBT_DIR := $(CURDIR)/transform
 export DBT_PROFILES_DIR := $(CURDIR)/transform
 
-.PHONY: dbt-debug dbt-deps dbt-seed dbt-run dbt-test dbt-build dbt-docs
+PIP := $(CURDIR)/.venv/bin/pip
+PYTEST := $(CURDIR)/.venv/bin/pytest
+UVICORN := $(CURDIR)/.venv/bin/uvicorn
+
+.PHONY: dbt-debug dbt-deps dbt-seed dbt-run dbt-test dbt-build dbt-docs \
+        api-install api-run api-test
 
 # Validate config + warehouse connectivity.
 dbt-debug:
@@ -45,3 +50,15 @@ dbt-build:
 # Generate and serve the docs site.
 dbt-docs:
 	cd $(DBT_DIR) && $(DBT) docs generate && $(DBT) docs serve
+
+# Install the FastAPI backend (and dev tools) into the project virtualenv.
+api-install:
+	$(PIP) install -e ".[api,dev]"
+
+# Run the API with autoreload. .env is loaded above, so Snowflake creds are set.
+api-run:
+	$(UVICORN) dermiq.api.main:app --reload --port 8000 --host 0.0.0.0
+
+# Run the API test suite (hits real Snowflake; .env is loaded above).
+api-test:
+	$(PYTEST) tests/api/ -v
