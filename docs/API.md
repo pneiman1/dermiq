@@ -153,7 +153,17 @@ curl -s "$BASE/channels/acquisition-by-month?months=6" -H "$H"
 ### `GET /recall/queue?limit=100&min_priority=low`
 Top-N patients to recall from `mart_recall_queue`, sorted by `recall_priority`
 (urgent > high > medium > low) then `last_visit_date` asc. `min_priority` filters
-to that tier and above. `limit` ∈ [1, 1000].
+to that tier and above. `limit` ∈ [1, 5000].
+
+### `GET /recall/summary`
+Aggregate of the recall queue — counts by priority, average recency, latest visit
+date. (The row endpoint is paginated, so counts live here.)
+```bash
+curl -s $BASE/recall/summary -H "$H"
+```
+```json
+{ "total": 1099, "urgent": 41, "high": 168, "medium": 612, "low": 278, "avg_recency_days": 281, "max_last_visit_date": "2026-03-11" }
+```
 ```bash
 curl -s "$BASE/recall/queue?limit=3&min_priority=urgent" -H "$H"
 ```
@@ -190,6 +200,48 @@ curl -s "$BASE/flow/dispositions?start_date=2026-01-01&end_date=2026-06-30" -H "
     "total": 15, "no_show_rate": "0.000000", "cancel_rate": "0.000000"
   }
 ]
+```
+
+### `GET /flow/by-hour?start_date=&end_date=`
+Appointment volume by ISO day-of-week (`dow`: 1=Mon … 7=Sun) × hour-of-day
+(`hour`: 0–23), for the day×hour heatmap. Defaults to the trailing 84 days.
+Hours are corrected +8h to clinic-local business hours (see code note — the seed
+stored naive local times as UTC).
+```bash
+curl -s $BASE/flow/by-hour -H "$H"
+```
+```json
+[
+  { "dow": 1, "hour": 9, "appointment_count": 34, "completed_count": 31 }
+]
+```
+
+### `GET /flow/no-show-by-provider`
+No-show / cancel rates per provider, from `int_appointment_disposition` (the only
+grain with per-provider dispositions). Sorted by no-show rate desc.
+```bash
+curl -s $BASE/flow/no-show-by-provider -H "$H"
+```
+```json
+[
+  { "provider_id": "prov_005", "provider_name": "Anita Desai, MD", "scheduled": 812,
+    "completed": 740, "no_show": 44, "cancelled": 28,
+    "no_show_rate": "0.054187", "cancel_rate": "0.034483" }
+]
+```
+
+---
+
+## Patients
+
+### `GET /patients/tier-summary`
+Recency-tier counts across non-deleted patients (e.g. for an "active patients"
+KPI). `total` includes never-visited patients (whose recency tier is null).
+```bash
+curl -s $BASE/patients/tier-summary -H "$H"
+```
+```json
+{ "active": 612, "lapsing": 388, "lapsed": 1043, "dormant": 1297, "total": 3498 }
 ```
 
 ---

@@ -15,7 +15,11 @@ from dermiq.api.schemas import (
     AcquisitionByMonthRow,
     ChannelAttributionRow,
     DispositionDailyRow,
+    FlowByHourRow,
+    NoShowByProviderRow,
+    PatientTierSummary,
     ProviderRevenueDailyRow,
+    RecallSummary,
     ProviderScorecardRow,
     RecallQueueRow,
     RevenueDailyRow,
@@ -119,7 +123,7 @@ def acquisition_by_month(
 def recall_queue(
     tenant: str = Depends(current_tenant),
     cur: SnowflakeCursor = Depends(db_cursor),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(100, ge=1, le=5000),
     min_priority: Literal["urgent", "high", "medium", "low"] = "low",
 ) -> list[RecallQueueRow]:
     sql = (
@@ -129,6 +133,26 @@ def recall_queue(
         "limit %s"
     )
     return fetch_models(cur, sql, (PRIORITY_RANK[min_priority], limit), RecallQueueRow)
+
+
+@router.get("/recall/summary", response_model=RecallSummary)
+def recall_summary(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+) -> RecallSummary:
+    """Counts by recall priority + avg recency + latest visit, for the KPI strip
+    (the row endpoint is paginated, so aggregates live here)."""
+    sql = (
+        "select count(*) as total, "
+        "count_if(recall_priority = 'urgent') as urgent, "
+        "count_if(recall_priority = 'high') as high, "
+        "count_if(recall_priority = 'medium') as medium, "
+        "count_if(recall_priority = 'low') as low, "
+        "round(avg(recency_days))::int as avg_recency_days, "
+        "max(last_visit_date) as max_last_visit_date "
+        f"from {fq('mart', 'mart_recall_queue', tenant)}"
+    )
+    return fetch_models(cur, sql, (), RecallSummary)[0]
 
 
 @router.get("/flow/dispositions", response_model=list[DispositionDailyRow])
@@ -151,3 +175,73 @@ def flow_dispositions(
         "where scheduled_date between %s and %s group by 1 order by 1"
     )
     return fetch_models(cur, sql, (start, end), DispositionDailyRow)
+
+
+@router.get("/flow/by-hour", response_model=list[FlowByHourRow])
+def flow_by_hour(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+) -> list[FlowByHourRow]:
+    """Appointment volume by ISO day-of-week x hour-of-day, for the heatmap.
+    Defaults to the trailing 84 days (12 weeks).
+
+    NOTE: scheduled_start's hours are shifted ~8h in the seeded data (naive local
+    times were stored as UTC at ingest), so a plain hour() reads 1am-11am. The
+    `timestampadd('hour', 8, ...)` restores clinic-local business hours (9am-7pm)
+    for display. The real fix belongs upstream in the seed/ingestion tz handling
+    (tracked tech-debt), not here.
+    """
+    end = end_date or date.today()
+    start = start_date or (end - timedelta(days=84))
+    sql = (
+        "select dayofweekiso(timestampadd('hour', 8, scheduled_start)) as dow, "
+        "hour(timestampadd('hour', 8, scheduled_start)) as hour, "
+        "count(*) as appointment_count, "
+        "count_if(appointment_status = 'completed') as completed_count "
+        f"from {fq('stg', 'stg_nextech__appointments', tenant)} "
+        "where timestampadd('hour', 8, scheduled_start)::date between %s and %s "
+        "group by 1, 2 order by 1, 2"
+    )
+    return fetch_models(cur, sql, (start, end), FlowByHourRow)
+
+
+@router.get("/flow/no-show-by-provider", response_model=list[NoShowByProviderRow])
+def no_show_by_provider(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+) -> list[NoShowByProviderRow]:
+    """No-show / cancel rates per provider, from int_appointment_disposition
+    (the only grain that carries per-provider dispositions)."""
+    sql = (
+        "select d.provider_id, p.full_name as provider_name, "
+        "count(*) as scheduled, "
+        "count_if(d.is_completed) as completed, "
+        "count_if(d.is_no_show) as no_show, "
+        "count_if(d.is_cancelled) as cancelled, "
+        "count_if(d.is_no_show) / nullif(count(*), 0) as no_show_rate, "
+        "count_if(d.is_cancelled) / nullif(count(*), 0) as cancel_rate "
+        f"from {fq('int', 'int_appointment_disposition', tenant)} d "
+        f"join {fq('stg', 'stg_nextech__providers', tenant)} p on d.provider_id = p.provider_id "
+        "group by 1, 2 order by no_show_rate desc nulls last"
+    )
+    return fetch_models(cur, sql, (), NoShowByProviderRow)
+
+
+@router.get("/patients/tier-summary", response_model=PatientTierSummary)
+def patient_tier_summary(
+    tenant: str = Depends(current_tenant),
+    cur: SnowflakeCursor = Depends(db_cursor),
+) -> PatientTierSummary:
+    """Recency-tier counts across non-deleted patients (e.g. for an 'active
+    patients' KPI). Sourced from int_patient_lifetime_value."""
+    sql = (
+        "select count_if(recency_tier = 'active') as active, "
+        "count_if(recency_tier = 'lapsing') as lapsing, "
+        "count_if(recency_tier = 'lapsed') as lapsed, "
+        "count_if(recency_tier = 'dormant') as dormant, "
+        "count(*) as total "
+        f"from {fq('int', 'int_patient_lifetime_value', tenant)} where not is_deleted"
+    )
+    return fetch_models(cur, sql, (), PatientTierSummary)[0]

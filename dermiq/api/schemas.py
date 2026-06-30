@@ -140,3 +140,43 @@ class DispositionDailyRow(BaseModel):
     total: int
     no_show_rate: Decimal | None
     cancel_rate: Decimal | None
+
+
+class FlowByHourRow(BaseModel):
+    dow: int  # ISO day-of-week: 1=Mon … 7=Sun
+    hour: int  # 0 … 23
+    appointment_count: int
+    completed_count: int
+
+
+class PatientTierSummary(BaseModel):
+    """Recency-tier counts across non-deleted patients (active/lapsing/lapsed/
+    dormant; total includes never-visited, whose tier is null)."""
+    active: int
+    lapsing: int
+    lapsed: int
+    dormant: int
+    total: int
+
+
+class NoShowByProviderRow(BaseModel):
+    provider_id: str
+    provider_name: str
+    scheduled: int
+    completed: int
+    no_show: int
+    cancelled: int
+    no_show_rate: Decimal | None
+    cancel_rate: Decimal | None
+
+
+class RecallSummary(BaseModel):
+    """Aggregate of the recall queue — counts by priority, plus avg recency and
+    the latest visit date. (The row endpoint is paginated, so counts live here.)"""
+    total: int
+    urgent: int
+    high: int
+    medium: int
+    low: int
+    avg_recency_days: int | None
+    max_last_visit_date: date | None

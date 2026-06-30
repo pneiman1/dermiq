@@ -20,7 +20,8 @@ PYTEST := $(CURDIR)/.venv/bin/pytest
 UVICORN := $(CURDIR)/.venv/bin/uvicorn
 
 .PHONY: dbt-debug dbt-deps dbt-seed dbt-run dbt-test dbt-build dbt-docs \
-        api-install api-run api-test
+        api-install api-run api-test \
+        frontend-install frontend-dev frontend-build
 
 # Validate config + warehouse connectivity.
 dbt-debug:
@@ -62,3 +63,13 @@ api-run:
 # Run the API test suite (hits real Snowflake; .env is loaded above).
 api-test:
 	$(PYTEST) tests/api/ -v
+
+# --- Frontend (Next.js, in frontend/) ---
+frontend-install:
+	cd frontend && npm install
+
+frontend-dev:
+	cd frontend && npm run dev
+
+frontend-build:
+	cd frontend && npm run build

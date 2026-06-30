@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 96%; /* slate-100 — more separation from white cards */
+    --foreground: 222 47% 11%; /* slate-900 */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 193 82% 31%; /* clinical teal #0E7490 */
+    --primary-foreground: 0 0% 100%;
+    --muted: 210 40% 96%; /* slate-100 */
+    --muted-foreground: 215 16% 47%; /* slate-500 */
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 347 77% 50%; /* rose-600 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%; /* slate-200 */
+    --input: 214 32% 91%;
+    --ring: 193 82% 31%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 5%; /* near slate-950 */
+    --foreground: 210 40% 98%;
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 193 75% 45%; /* lighter teal for dark */
+    --primary-foreground: 222 47% 7%;
+    --muted: 217 33% 17%; /* slate-800 */
+    --muted-foreground: 215 20% 65%; /* slate-400 */
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 347 77% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 193 75% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body {
+    @apply h-full;
+  }
+  body {
+    @apply text-foreground;
+    /* Warm neutral canvas; fixed so it covers the full viewport past the scroll.
+       Bottom is pushed darker so the gradient is actually perceptible. */
+    background: linear-gradient(180deg, #fafaf9 0%, #efefec 100%);
+    background-attachment: fixed;
+  }
+  .dark body {
+    background: linear-gradient(180deg, theme(colors.slate.900) 0%, theme(colors.slate.950) 100%);
+    background-attachment: fixed;
+  }
+}
