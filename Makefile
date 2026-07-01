@@ -21,7 +21,8 @@ UVICORN := $(CURDIR)/.venv/bin/uvicorn
 
 .PHONY: dbt-debug dbt-deps dbt-seed dbt-run dbt-test dbt-build dbt-docs \
         api-install api-run api-test \
-        frontend-install frontend-dev frontend-build
+        frontend-install frontend-dev frontend-build \
+        airflow-start airflow-stop airflow-restart
 
 # Validate config + warehouse connectivity.
 dbt-debug:
@@ -73,3 +74,13 @@ frontend-dev:
 
 frontend-build:
 	cd frontend && npm run build
+
+# --- Airflow (Astronomer, in airflow/) ---
+airflow-start:
+	cd airflow && astro dev start
+
+airflow-stop:
+	cd airflow && astro dev stop
+
+airflow-restart:
+	cd airflow && astro dev restart

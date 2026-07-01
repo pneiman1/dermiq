@@ -1,0 +1,9 @@
+# Cosmos renders the dbt project as an Airflow task group.
+astronomer-cosmos==1.8.*
+# Runtime deps for the bind-mounted platform_core + dermiq.ingestion code
+# (the extract task): Snowflake load (write_pandas needs pandas/pyarrow),
+# Postgres read, structured logging, settings.
+snowflake-connector-python[pandas]==3.*
+psycopg2-binary==2.9.*
+structlog>=24
+pydantic-settings>=2

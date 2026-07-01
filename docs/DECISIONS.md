@@ -246,6 +246,74 @@ staging `varchar` bridge (ADR-004) is a stopgap until this lands.
 - (–) Until resolved, chunk-6 is gated: do not wire scheduled ingestion before this
   is fixed.
 
+## ADR-006: Orchestrate the pipeline with Airflow (Astronomer) + astronomer-cosmos
+
+**Date:** 2026-07-01
+**Status:** Accepted
+
+**Context.** chunk-8 needs scheduled, observable execution of the daily pipeline
+(Postgres source → Snowflake RAW → dbt stg/int/mart). It must reuse the existing
+`dermiq.ingestion` code and the `transform/` dbt project without duplicating them,
+run on a fresh contributor's machine, and coexist with the already-running source
+Postgres and the FastAPI/Next.js stack.
+
+**Decision.** Airflow, run locally via the Astronomer CLI (`astro dev start`), with
+the dbt project wrapped as an Airflow task group by **astronomer-cosmos**. One DAG,
+`del_mar_pipeline`, `schedule="0 6 * * *"`:
+`wait_for_postgres` (PythonSensor) → `extract_postgres_to_snowflake` (PythonOperator
+→ `ingest_source_to_raw`) → `dbt_build` (Cosmos `DbtTaskGroup`: one run + test task
+per model) → `notify_complete` (logs row counts). Lives in `airflow/` at the repo
+root.
+
+Gray-area choices (resolved without pausing, per chunk-8 instructions):
+- **Cosmos** over a single `BashOperator dbt build` or hand-written per-model
+  operators: Cosmos renders each model as its own run+test task with real
+  dependencies — per-model observability, retries, and lineage for free — while the
+  dbt project stays the single source of truth.
+- **Image pinned to `quay.io/astronomer/astro-runtime:12.7.1` (Airflow 2.10.3)**
+  rather than the CLI's default Airflow 3 runtime: classic DAG syntax and the most
+  proven Cosmos support, minimizing first-run risk. Pinned exactly for
+  reproducibility.
+- **Editable code via bind-mount + `sys.path`, not `pip install -e` in the
+  Dockerfile:** astro's build context is `airflow/` and cannot reach the sibling
+  `../platform-core` / `..` repos, so an in-image editable install is impossible.
+  The two repos are bind-mounted (`docker-compose.override.yml`, relative paths) and
+  prepended to `sys.path` in the DAG, preserving the "edits reflect live" property.
+  Runtime deps come from `requirements.txt`; dbt runs from an isolated venv (Cosmos
+  best practice), pinned `dbt-snowflake==1.11.*` to match the repo.
+- **Auth via env vars, not Airflow Connection objects:** credentials flow through
+  `airflow/.env` (astro auto-loads it, gitignored). The extract task reads them via
+  `get_settings()`; Cosmos runs dbt against the existing env-driven
+  `transform/profiles.yml` (`env_var()`) — one connection-config source across app,
+  dbt, ingestion, and Airflow. Postgres is reached at `host.docker.internal:5432`
+  (the source DB is a separate compose stack).
+- **Retry/backoff:** `default_args` set `retries=2, retry_delay=2min` on every task;
+  the sensor uses `mode="reschedule"` (frees the worker between pokes), 5-min
+  timeout.
+- **Port de-confliction:** astro webserver → 8081, metadata-Postgres → 5434 (avoids
+  the source Postgres on 5432 and other local services).
+
+**Alternatives considered.**
+- Dagster / Prefect: viable, but platform-core ADR-004 already committed to Airflow.
+- `pip install -e` via a parent build context: would force the astro project above
+  both repos; rejected — bind-mount is idiomatic and keeps `airflow/` at the repo
+  root as specced.
+- Airflow Connection objects in `airflow_settings.yaml`: more Airflow-native but
+  duplicates the credential source; rejected for the single env-driven config.
+- Airflow 3 runtime (CLI default): newer authoring model + less-proven Cosmos path;
+  no demo benefit, so not worth the first-run risk.
+
+**Consequences.**
+- (+) `make airflow-start` runs the full pipeline green end-to-end — verified:
+  18,560 rows ingested, all 26 dbt model run+test tasks pass, marts rebuilt.
+- (+) Per-model tasks in the UI give real observability + granular retries; the dbt
+  project stays canonical.
+- (+) One env-driven credential source shared by app, dbt, ingestion, and Airflow.
+- (–) Bind-mount + `sys.path` is astro-dev-specific; a production deploy (EC2 / MWAA)
+  would bake the packages into the image instead.
+- (–) `airflow/.env` and `airflow_settings.yaml` are gitignored (local dev only); a
+  fresh contributor copies `.env` (SETUP.md covers this).
+
 ## How to add an ADR
 
 Follow the same template platform-core uses:

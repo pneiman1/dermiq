@@ -1,0 +1,17 @@
+# Bind-mount the sibling repos into the Airflow containers so the DAG can import
+# platform_core + dermiq (via sys.path) and Cosmos can read the dbt project at
+# transform/. Relative paths (no hardcoded absolute paths — cross-platform).
+# rw so `dbt` can write target/ and dbt_packages/ (both gitignored).
+services:
+  scheduler:
+    volumes:
+      - ../../platform-core:/usr/local/airflow/vendor/platform-core:rw
+      - ..:/usr/local/airflow/vendor/dermiq:rw
+  triggerer:
+    volumes:
+      - ../../platform-core:/usr/local/airflow/vendor/platform-core:rw
+      - ..:/usr/local/airflow/vendor/dermiq:rw
+  webserver:
+    volumes:
+      - ../../platform-core:/usr/local/airflow/vendor/platform-core:rw
+      - ..:/usr/local/airflow/vendor/dermiq:rw
