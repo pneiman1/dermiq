@@ -258,10 +258,14 @@ curl -s $BASE/patients/tier-summary -H "$H"
 
 ## Future work
 
-1. **Connection pooling.** The app currently holds a *single* long-lived Snowflake
-   connection (opened at startup, a fresh cursor per request). Fine for the demo,
-   but concurrent load will serialize on it. Migrate to a real pool (snowflake
-   connector pooling or a pooled SQLAlchemy engine) before multi-user traffic.
+1. **Connection pooling.** The app holds a *single* long-lived Snowflake
+   connection (opened at startup, a fresh cursor per request). To stop the session
+   token expiring overnight, `client_session_keep_alive=True` is enabled on the
+   connection (platform-core `get_snowflake_connection`) — its background heartbeat
+   auto-refreshes the token. **This is the dev solution (option A).** For real
+   concurrent load, migrate to a per-request connection factory (B) or a real pool
+   — snowflake-connector pooling / a pooled SQLAlchemy engine with `NullPool` (C).
+   If keep-alive proves unreliable in longer running, escalate to B.
 2. **Real auth.** `X-Tenant-ID` is a stub. Real auth (Clerk / Auth0 / Cognito —
    TBD) will resolve the tenant from a verified JWT. The handler interface is
    stable: the `current_tenant` dependency keeps returning a `tenant_id`; only its
