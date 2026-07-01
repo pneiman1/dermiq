@@ -1,137 +1,189 @@
 # DermIQ — Setup from scratch
 
-This guide takes you from a fresh machine to a loaded source database with
-realistic Del Mar Cosmetic Dermatology data.
+This guide takes a **fresh machine** to the full stack running locally: Postgres
+source DB seeded → Snowflake RAW → dbt (stg/int/mart) → FastAPI → Next.js
+dashboard at `http://localhost:3000`. Budget ~60–90 minutes the first time.
 
-DermIQ is the first vertical product built on
-[`platform-core`](https://github.com/pneiman1/platform-core). It does **not**
-vendor platform-core — it imports it from a sibling checkout installed in
-editable mode (see [`docs/DECISIONS.md`](DECISIONS.md), ADR-001). The two repos
-are developed side by side.
+**Prerequisite:** set up [`platform-core`](https://github.com/pneiman1/platform-core)
+**first** — see `platform-core/docs/SETUP.md`. DermIQ imports it from a sibling
+checkout in editable mode (ADR-001); it is not on a package index.
 
-## Prerequisites
+**Supported platforms:** macOS (Intel & Apple Silicon), Linux, and Windows via
+WSL2. Steps are identical except where a callout marks **macOS** vs
+**Linux / WSL2**. On Apple Silicon, also skim [`MACOS-NOTES.md`](MACOS-NOTES.md).
 
-- WSL2 (or Linux/macOS), Python 3.11+, and git
-- Docker + Docker Compose (for the local Postgres source database)
+> WSL2: run everything inside your Ubuntu distro, and ensure Docker Desktop's
+> **WSL Integration** is enabled for it.
 
-## 1. Clone both repos as siblings
+---
 
-The editable install relies on the relative path `../platform-core`, so the two
-checkouts must live next to each other:
+## 1. Install Node.js 20 (for the frontend)
+
+platform-core setup already covered Python 3.12, git, Docker, AWS/Astronomer.
+DermIQ's frontend additionally needs **Node.js 20+**.
+
+**macOS**
+```bash
+brew install node            # or: brew install node@20
+node --version               # v20.x or newer
+```
+
+**Linux / WSL2**
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+node --version
+```
+
+## 2. Clone DermIQ next to platform-core
+
+The editable install uses the relative path `../platform-core`, so keep them
+siblings:
 
 ```
-projects/
-├── platform-core/
-└── dermiq/
+~/projects/
+├── platform-core/      ← already set up
+└── dermiq/             ← this repo
 ```
 
 ```bash
 cd ~/projects
-git clone git@github.com:pneiman1/platform-core.git
 git clone git@github.com:pneiman1/dermiq.git
+cd dermiq
 ```
 
-## 2. Create a virtual environment
-
-A single shared virtualenv at the `projects/` level keeps both editable
-installs visible to each other. (A per-repo venv works too — just install
-platform-core into it as shown below.)
+## 3. Create a virtualenv and install (platform-core first)
 
 ```bash
-cd ~/projects/dermiq
-python3 -m venv .venv
-source .venv/bin/activate
+python3.12 -m venv .venv
+source .venv/bin/activate            # macOS & Linux/WSL2
+
+pip install --upgrade pip
+pip install -e ../platform-core      # the shared library, FIRST
+pip install -e ".[dev,transform,api]"  # DermIQ + dbt + API + dev tools
 ```
 
-## 3. Install platform-core, then DermIQ — in that order
-
-platform-core must be installed first because DermIQ imports from it and does
-not declare it as a resolvable dependency (it is not on a package index).
-
-```bash
-pip install -e ../platform-core        # the shared library
-pip install -e ".[dev]"                # DermIQ itself + dev tools
-```
-
-Verify the import resolves:
-
-```bash
-python -c "from platform_core.utils.logging import get_logger; print('platform-core OK')"
-```
+> macOS: invoke `python3.12` explicitly so the venv isn't built from a shadowing
+> Homebrew/system Python — see [MACOS-NOTES](MACOS-NOTES.md).
 
 ## 4. Configure environment
 
+Reuse the Snowflake credentials you already put in platform-core's `.env`:
+
 ```bash
-cp .env.example .env
+cp ../platform-core/.env .env
 ```
 
-For the data-seeding workflow below, the defaults work out of the box — the only
-variable that matters is `POSTGRES_SOURCE_URL`, which already matches the
-docker-compose credentials. Fill in Snowflake / Anthropic values later, when you
-start building ingestion and the LLM features.
+The Postgres source defaults already match `docker-compose.yml`, so no edits are
+needed for local dev.
 
 ## 5. Start the Postgres source database
 
 ```bash
 docker compose up -d
+docker compose ps        # STATUS should show "healthy"
 ```
 
-This launches `dermiq-postgres` and auto-loads the Nextech-shaped schema from
-`infra/postgres/init/01_schema.sql` (schema `nextech_source`, plus a read-only
-`dermiq_reader` role). Confirm it is healthy:
-
-```bash
-docker compose ps          # STATUS should show "healthy"
-```
+This launches `dermiq-postgres` and auto-loads the Nextech-shaped schema. The
+image (`postgres:16-alpine`) is **multi-arch**, so it runs natively on both Intel
+and Apple Silicon Macs and on Linux/WSL2.
 
 ## 6. Seed the source database
 
-Generate ~18 months of synthetic Del Mar data and load it into Postgres:
-
 ```bash
 python scripts/seed_postgres.py
 ```
 
-The generators are deterministic (seed=42), so re-running produces the same
-data. The script truncates existing rows first, so it is safe to re-run.
+Generates ~18 months of deterministic (seed=42) Del Mar data and loads it into
+Postgres (~7 providers, 38 services, 3,500 patients, and their appointments &
+transactions). Safe to re-run (truncates first).
 
-Expected output (approximate — exact counts depend on the generator):
-
-```
-=== Postgres source database loaded ===
-  providers      : 7
-  services       : 38
-  patients       : 3,500
-  appointments   : ...
-  transactions   : ...
-```
-
-## 7. Verify the data landed
+## 7. Land the source into Snowflake (RAW)
 
 ```bash
-docker compose exec postgres \
-  psql -U dermiq -d del_mar_source -c \
-  "SELECT count(*) AS transactions FROM nextech_source.transactions;"
+python scripts/ingest_raw.py
 ```
 
-If you see a non-zero count, the source database is ready and the analytics
-pipeline (ingestion → dbt → marts) can be built on top of it.
+Reads every `nextech_source` table via the read-only role and full-refreshes it
+into `DERMIQ_DEV.RAW_DEL_MAR` with explicit column types (ADR-005).
+
+## 8. Transform through dbt (stg → int → mart)
+
+```bash
+make dbt-deps        # install dbt packages (dbt_utils)
+make dbt-debug       # validate config + Snowflake connectivity
+make dbt-build       # build all models + run tests
+```
+
+> The Makefile loads `.env` and uses GNU make features (`include`, `wildcard`,
+> `ifneq`). macOS ships GNU make (3.81) by default, so this works as-is; recipe
+> commands are POSIX `sh` (`cd … && …`) with no bash-only syntax.
+
+## 9. Run the API and the frontend (two terminals)
+
+**Terminal 1 — API** (FastAPI on `:8000`):
+```bash
+make api-install     # first time only: pip install -e ".[api,dev]"
+make api-run
+```
+
+**Terminal 2 — frontend** (Next.js on `:3000`):
+```bash
+cd frontend
+npm install          # first time only
+npm run dev
+```
+
+The frontend defaults to `http://localhost:8000/api/v1`; to override, create
+`frontend/.env.local` with `NEXT_PUBLIC_API_BASE_URL=...`.
+
+## 10. Open the dashboard
+
+```
+http://localhost:3000
+```
+
+You should land on the **Executive** tab with live KPIs, the revenue line chart,
+and the category breakdown.
+
+---
 
 ## Resetting
 
-To wipe everything and start clean:
-
 ```bash
-docker compose down -v     # removes the postgres_data volume
-docker compose up -d       # re-creates the schema from scratch
+docker compose down -v       # wipe the postgres_data volume
+docker compose up -d
 python scripts/seed_postgres.py
+python scripts/ingest_raw.py
+make dbt-build
 ```
+
+---
+
+## Cross-platform validation checklist
+
+Run these at the end of setup to confirm every layer works. All should pass on
+macOS, Linux, and WSL2.
+
+| # | Command | Expected |
+|---|---|---|
+| 1 | `docker compose ps` | `dermiq-postgres` STATUS **healthy** |
+| 2 | `python scripts/seed_postgres.py` | prints loaded counts, exits 0 |
+| 3 | `make dbt-debug` | `All checks passed!` |
+| 4 | `python scripts/ingest_raw.py` | prints RAW row counts, exits 0 |
+| 5 | `make dbt-build` | `Done. PASS=… ERROR=0` |
+| 6 | `make api-run`, then `curl -s -H "X-Tenant-ID: del_mar" localhost:8000/api/v1/health` | `{"status":"ok","snowflake_reachable":true}` |
+| 7 | `cd frontend && npm run dev`, then open `localhost:3000` | Executive tab renders with data |
+
+---
 
 ## Troubleshooting
 
-- **`ModuleNotFoundError: platform_core`** — platform-core was not installed, or
-  the venv is not active. Re-run step 3 with the venv activated.
-- **Connection refused on port 5432** — the container is not up/healthy, or
-  another Postgres is already bound to 5432. Check `docker compose ps`.
-- **Imports behave oddly after editing platform-core** — editable installs pick
-  up source changes live; if not, re-run `pip install -e ../platform-core`.
+- **`ModuleNotFoundError: platform_core`** — venv not active or editable install
+  missing. Re-activate `.venv`, re-run step 3.
+- **Connection refused on 5432** — container not healthy, or another Postgres is
+  bound to 5432. Check `docker compose ps`.
+- **API returns `internal error querying warehouse` after a while** — the dev
+  server's Snowflake session token expired; restart `make api-run` (real fix is
+  pooling/keep-alive, see `docs/API.md` → Future work).
+- **Apple Silicon specifics** — see [`MACOS-NOTES.md`](MACOS-NOTES.md).

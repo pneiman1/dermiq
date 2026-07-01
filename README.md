@@ -8,11 +8,18 @@ DermIQ surfaces operational and financial insights from a clinic's EMR, marketin
 
 Early development. The first vertical product on top of [`platform-core`](https://github.com/pneiman1/platform-core).
 
+## Supported platforms
+
+macOS (Intel & Apple Silicon), Linux, and Windows via WSL2. See
+[`docs/SETUP.md`](docs/SETUP.md) for per-platform steps and
+[`docs/MACOS-NOTES.md`](docs/MACOS-NOTES.md) for Apple Silicon gotchas.
+
 ## Getting started
 
-See [`docs/SETUP.md`](docs/SETUP.md) for the full step-by-step: clone alongside
-platform-core, install both in editable mode, start the Postgres source database,
-and seed ~18 months of synthetic Del Mar Cosmetic Dermatology data.
+See [`docs/SETUP.md`](docs/SETUP.md) for the full step-by-step: install Node +
+clone alongside platform-core, install both in editable mode, start the Postgres
+source database, seed synthetic data, run ingestion → dbt → API → the Next.js
+dashboard at `localhost:3000`.
 
 Architecture decisions specific to DermIQ are logged in
 [`docs/DECISIONS.md`](docs/DECISIONS.md); shared platform decisions live in
