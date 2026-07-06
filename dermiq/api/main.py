@@ -12,7 +12,7 @@ from platform_core.config import get_settings
 from platform_core.utils.logging import configure_logging, get_logger
 from platform_core.warehouse.connection import get_snowflake_connection
 
-from dermiq.api.routers import marts, meta
+from dermiq.api.routers import marts, meta, segments
 
 log = get_logger(__name__)
 
@@ -66,3 +66,4 @@ async def log_requests(request: Request, call_next):
 
 app.include_router(meta.router, prefix=API_PREFIX)
 app.include_router(marts.router, prefix=API_PREFIX)
+app.include_router(segments.router, prefix=API_PREFIX)

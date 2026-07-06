@@ -180,3 +180,28 @@ class RecallSummary(BaseModel):
     low: int
     avg_recency_days: int | None
     max_last_visit_date: date | None
+
+
+class PatientSegment(BaseModel):
+    cluster_id: int
+    cluster_name: str
+    patient_count: int
+    avg_ltv: Decimal
+    avg_annual_run_rate: Decimal
+    dominant_category: str
+    top_provider_name: str | None
+    avg_recency_days: int | None
+    urgent_recall_count: int
+    active_patient_count: int
+
+
+class PatientSegmentMember(BaseModel):
+    patient_id: str
+    first_name: str
+    last_name: str
+    total_revenue: Decimal
+    annual_revenue_run_rate: Decimal | None
+    ltv_tier: str
+    recency_tier: str | None
+    last_visit_date: date | None
+    dominant_provider_name: str | None

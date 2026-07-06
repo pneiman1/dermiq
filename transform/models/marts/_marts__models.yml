@@ -111,3 +111,45 @@ models:
                 values: ["urgent", "high", "medium", "low"]
               config:
                 severity: warn
+
+  - name: mart_patient_segments
+    description: One row per discovered k-means patient segment.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "patient_count > 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "avg_ltv >= 0"
+    columns:
+      - name: cluster_id
+        description: Grain — k-means cluster id.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+
+  - name: mart_patient_segment_members
+    description: One row per clustered patient (drill-in behind each segment).
+    columns:
+      - name: patient_id
+        description: Grain — patient.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: cluster_id
+        description: FK to mart_patient_segments.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('mart_patient_segments')
+                field: cluster_id
+              config:
+                severity: error

@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: ml
+    description: >
+      Tables produced by the ML layer (scripts/run_clustering.py), not by dbt.
+      Full-refreshed on each clustering run (weekly via Airflow).
+    database: "{{ env_var('SNOWFLAKE_DATABASE', 'DERMIQ_DEV') }}"
+    schema: "INT_{{ env_var('DEFAULT_TENANT_ID', 'del_mar') | upper }}"
+    tables:
+      - name: int_patient_cluster_assignments
+        description: One row per patient — k-means cluster id + auto-generated name.

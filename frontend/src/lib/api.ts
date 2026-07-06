@@ -7,6 +7,8 @@ import type {
   FlowByHourRow,
   Health,
   NoShowByProviderRow,
+  PatientSegment,
+  PatientSegmentMember,
   PatientTierSummary,
   Priority,
   ProviderRevenueDailyRow,
@@ -96,4 +98,9 @@ export const api = {
   getNoShowByProvider: () => get<NoShowByProviderRow[]>("/flow/no-show-by-provider"),
 
   getPatientTierSummary: () => get<PatientTierSummary>("/patients/tier-summary"),
+
+  getSegments: () => get<PatientSegment[]>("/segments"),
+
+  getSegmentMembers: (clusterId: number, limit?: number) =>
+    get<PatientSegmentMember[]>(`/segments/${clusterId}/members`, { limit }),
 };

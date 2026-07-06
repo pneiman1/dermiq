@@ -246,6 +246,40 @@ curl -s $BASE/patients/tier-summary -H "$H"
 
 ---
 
+## Segments (patient clustering)
+
+### `GET /segments`
+The discovered patient segments (k-means clusters), one row each, ordered by
+`avg_ltv` desc.
+```bash
+curl -s $BASE/segments -H "$H"
+```
+```json
+[
+  { "cluster_id": 0, "cluster_name": "Membership — frequent VIP", "patient_count": 57,
+    "avg_ltv": "18500.0000", "avg_annual_run_rate": "11533.0000", "dominant_category": "membership",
+    "top_provider_name": "Vivian Park, MD", "avg_recency_days": 120,
+    "urgent_recall_count": 3, "active_patient_count": 41 }
+]
+```
+
+### `GET /segments/{cluster_id}/members?limit=50`
+Members of one segment, sorted by `total_revenue` desc. `404` if the cluster id
+doesn't exist. `limit` ∈ [1, 1000].
+```bash
+curl -s "$BASE/segments/0/members?limit=50" -H "$H"
+```
+```json
+[
+  { "patient_id": "pat_001234", "first_name": "Jane", "last_name": "Doe",
+    "total_revenue": "24500.0000", "annual_revenue_run_rate": "12000.0000",
+    "ltv_tier": "vip", "recency_tier": "active", "last_visit_date": "2026-05-30",
+    "dominant_provider_name": "Vivian Park, MD" }
+]
+```
+
+---
+
 ## Errors
 
 | Status | When |

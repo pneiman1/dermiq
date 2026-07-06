@@ -314,6 +314,55 @@ Gray-area choices (resolved without pausing, per chunk-8 instructions):
 - (–) `airflow/.env` and `airflow_settings.yaml` are gitignored (local dev only); a
   fresh contributor copies `.env` (SETUP.md covers this).
 
+## ADR-007: Unsupervised k-means for patient segmentation (chunk-9)
+
+**Date:** 2026-07-06
+**Status:** Accepted
+
+**Tag:** `tech-debt:ml-tuning`
+
+**Context.** chunk-9 needs behavior-driven patient segments to surface in AI Studio
+(and to make the tab more than a placeholder). The seed bakes in ~7 personas, so
+the segments should be *discovered*, not hand-coded.
+
+**Decision.** k-means over per-patient behavioral features
+(`int_patient_features` → `dermiq/ml/clustering.py`), assignments materialized to
+`INT_DEL_MAR.INT_PATIENT_CLUSTER_ASSIGNMENTS`, rolled up by `mart_patient_segments`
+(+ `mart_patient_segment_members`), served at `/api/v1/segments`, rendered as the
+AI Studio segment grid.
+
+- **k = 7** — chosen because the seed has ~7 personas. Real deployments should pick
+  k via the elbow method + silhouette scoring, not a hardcoded constant. Tracked
+  as `tech-debt:ml-tuning`.
+- **StandardScaler before fitting** — critical for k-means (Euclidean): features
+  span wildly different scales (LTV in thousands, category shares in [0, 1]). Without
+  scaling, revenue would dominate the distance metric and the shares would be noise.
+- **`random_state=42`** — reproducible assignments across dev/prod runs.
+- **Assignments materialized in Snowflake**, not recomputed per API request:
+  clustering is a batch job; per-request k-means would be slow and non-deterministic.
+  Tradeoff is freshness vs. cost — **weekly retraining** is the compromise.
+- **Auto-labeling from centroid dominance** — each cluster is named from its
+  dominant category + value/engagement tier (e.g. "Injectable — frequent VIP").
+  Name collisions (the two injectable cohorts) fall back to a disambiguating suffix.
+  Future: LLM-generated cluster names from the centroid feature vectors.
+- **Retraining cadence: Airflow-scheduled weekly** — `weekly_clustering.py`
+  (`0 3 * * MON`, ahead of the 6am daily pipeline): sensor → run_clustering →
+  Cosmos rebuild of `mart_patient_segments+`.
+
+**Alternatives considered.**
+- Hierarchical / DBSCAN: no need for arbitrary k, but harder to label and to
+  explain to a clinic; k-means is the interpretable default at this scale.
+- Hand-coded rule-based segments: faster, but the whole point is *discovery* — and
+  rules would just re-encode the seed personas.
+- Recompute per request: rejected — cost + non-determinism.
+
+**Consequences.**
+- (+) Real, explainable segments surfaced end-to-end (dbt → ML → dbt → API → UI).
+- (+) The dbt marts stay the query layer; the ML writes one intermediate table.
+- (–) k is fixed (tech-debt); labels are heuristic (LLM naming is the upgrade).
+- (–) `mart_patient_segments` depends on the ML-produced source table existing —
+  clustering must run once before those marts build on a fresh environment.
+
 ## How to add an ADR
 
 Follow the same template platform-core uses:

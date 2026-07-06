@@ -42,6 +42,12 @@ transform = [
     "dbt-snowflake>=1.8",
 ]
 
+# Machine learning (patient clustering, chunk-9). Opt-in — scikit-learn pulls
+# scipy and friends.
+ml = [
+    "scikit-learn>=1.4",
+]
+
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"

@@ -134,6 +134,31 @@ export interface FlowByHourRow {
   completed_count: number;
 }
 
+export interface PatientSegment {
+  cluster_id: number;
+  cluster_name: string;
+  patient_count: number;
+  avg_ltv: string;
+  avg_annual_run_rate: string;
+  dominant_category: string;
+  top_provider_name: string | null;
+  avg_recency_days: number | null;
+  urgent_recall_count: number;
+  active_patient_count: number;
+}
+
+export interface PatientSegmentMember {
+  patient_id: string;
+  first_name: string;
+  last_name: string;
+  total_revenue: string;
+  annual_revenue_run_rate: string | null;
+  ltv_tier: string;
+  recency_tier: string | null;
+  last_visit_date: string | null;
+  dominant_provider_name: string | null;
+}
+
 export interface NoShowByProviderRow {
   provider_id: string;
   provider_name: string;

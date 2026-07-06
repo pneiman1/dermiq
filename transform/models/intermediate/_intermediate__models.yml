@@ -137,3 +137,22 @@ models:
           - not_null:
               config:
                 severity: error
+
+  - name: int_patient_features
+    description: One row per cluster-eligible patient — behavioral features for k-means.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: >
+              abs(rev_injectable_share + rev_device_share + rev_skincare_share
+              + rev_membership_share + rev_surgical_share + rev_consult_share - 1) < 0.01
+    columns:
+      - name: patient_id
+        description: Grain — patient (cluster-eligible).
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error

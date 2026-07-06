@@ -7,3 +7,5 @@ snowflake-connector-python[pandas]==3.*
 psycopg2-binary==2.9.*
 structlog>=24
 pydantic-settings>=2
+# scikit-learn for the weekly patient-clustering DAG (dermiq.ml.clustering).
+scikit-learn>=1.4
