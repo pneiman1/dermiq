@@ -2,7 +2,7 @@
 
 Pipeline: fetch int_patient_features from Snowflake → scale → KMeans(k=7) →
 auto-label clusters from their centroids → write per-patient assignments back to
-Snowflake (INT_PATIENT_CLUSTER_ASSIGNMENTS). See docs/DECISIONS.md ADR-010.
+Snowflake (INT_PATIENT_CLUSTER_ASSIGNMENTS). See docs/DECISIONS.md ADR-007.
 """
 from __future__ import annotations
 
@@ -82,32 +82,45 @@ def fit_kmeans(X, k: int = 7):
     return model, labels, float(model.inertia_)
 
 
-def _name_cluster(cat: str, avg_ltv: float, recency: float, freq: float) -> str:
-    """Human-readable label from a cluster's dominant category + value/engagement."""
-    base = _CATEGORY_BASE.get(cat, cat)
+# LTV tiers by annualized value, tuned to this practice's segment spread. Tier
+# is the primary differentiator between clusters sharing a dominant category.
+_LTV_TIERS = (
+    (5000, "vip"),
+    (1500, "high"),
+    (500, "standard"),
+)
 
-    if recency > 240:
-        engagement = "lapsing"
-    elif freq >= 3:
-        engagement = "frequent"
-    else:
-        engagement = ""
 
-    if avg_ltv >= 6000:
-        tier = "VIP"
-    elif avg_ltv >= 2500:
-        tier = "high-value"
-    elif avg_ltv < 800:
-        tier = "low-value"
-    else:
-        tier = ""
+def _ltv_tier(avg_ltv: float) -> str:
+    for threshold, tier in _LTV_TIERS:
+        if avg_ltv >= threshold:
+            return tier
+    return "low"
 
-    mods = " ".join(m for m in (engagement, tier) if m)
-    return f"{base} — {mods}" if mods else base
+
+def _tier_name(base: str, tier: str) -> str:
+    """Intentional-reading segment name from category base + LTV tier."""
+    return {
+        "vip": f"{base} VIPs",
+        "high": f"{base} — high value",
+        "standard": f"{base} — regulars",
+        "low": f"{base} — occasional",
+    }[tier]
 
 
 def label_clusters(df: pd.DataFrame, labels) -> list[dict]:
     """Summarize + name each cluster from its members' feature averages.
+
+    Names read as intentional segments, not algorithmic output. The primary
+    differentiator is LTV tier (vip / high / regulars / occasional), so clusters
+    sharing a dominant category — e.g. the three injectable cohorts — get distinct
+    names ("Injectable VIPs" vs "Injectable — high value" vs "Injectable —
+    regulars") without repeating the category.
+
+    If two clusters share both category *and* tier, we escalate on the secondary
+    differentiator: recency profile (active vs lapsing), then a numeric suffix as
+    a last resort. Provider-based disambiguation is deferred — the feature matrix
+    carries only provider_id, not a display name.
 
     Returns one dict per cluster: cluster_id, cluster_name, cluster_size, avg_ltv,
     dominant_category, sample_patient_ids.
@@ -117,35 +130,51 @@ def label_clusters(df: pd.DataFrame, labels) -> list[dict]:
     for cid in sorted(tagged["cluster"].unique()):
         members = tagged[tagged["cluster"] == cid]
         dominant_category = members["dominant_category"].mode().iloc[0]
-        avg_ltv = float(members["annual_revenue_run_rate"].mean())
-        name = _name_cluster(
-            dominant_category,
-            avg_ltv,
-            float(members["recency_days"].median()),
-            float(members["avg_visits_per_year"].median()),
-        )
+        # Tier on lifetime revenue (matches the mart's avg_ltv), not run-rate.
+        avg_ltv = float(members["total_revenue"].mean())
+        base = _CATEGORY_BASE.get(dominant_category, dominant_category)
         results.append(
             {
                 "cluster_id": int(cid),
-                "cluster_name": name,
+                "cluster_name": _tier_name(base, _ltv_tier(avg_ltv)),
                 "cluster_size": int(len(members)),
                 "avg_ltv": round(avg_ltv, 2),
                 "dominant_category": dominant_category,
+                "recency_days": float(members["recency_days"].median()),
                 "sample_patient_ids": members["patient_id"].head(5).tolist(),
             }
         )
 
-    # Disambiguate any duplicate names (e.g. two "Injectable" clusters) so labels
-    # stay unique — append the dominant category when a name repeats.
-    seen: dict[str, int] = {}
+    _disambiguate(results)
     for r in results:
-        n = r["cluster_name"]
-        if n in seen:
-            seen[n] += 1
-            r["cluster_name"] = f"{n} ({r['dominant_category']})"
-        else:
-            seen[n] = 1
+        r.pop("recency_days", None)
     return results
+
+
+def _disambiguate(results: list[dict]) -> None:
+    """Make names unique when category + LTV tier collide (mutates in place)."""
+    from collections import defaultdict
+
+    by_name: dict[str, list[dict]] = defaultdict(list)
+    for r in results:
+        by_name[r["cluster_name"]].append(r)
+
+    for name, group in by_name.items():
+        if len(group) == 1:
+            continue
+        # Secondary differentiator: recency profile.
+        for r in group:
+            profile = "active" if r["recency_days"] <= 90 else "lapsing"
+            r["cluster_name"] = f"{name} · {profile}"
+        # Last resort: numeric suffix on anything still colliding.
+        still: dict[str, list[dict]] = defaultdict(list)
+        for r in group:
+            still[r["cluster_name"]].append(r)
+        for nm, sub in still.items():
+            if len(sub) == 1:
+                continue
+            for i, r in enumerate(sorted(sub, key=lambda x: -x["avg_ltv"]), start=1):
+                r["cluster_name"] = f"{nm} ({i})"
 
 
 def write_segments_to_snowflake(

@@ -79,7 +79,7 @@ export default function AiStudioPage() {
         {segments.isError ? (
           <ErrorCard message="Couldn't load segments." onRetry={() => segments.refetch()} />
         ) : segments.isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <Card key={i}>
                 <CardContent className="space-y-3 p-5">
@@ -91,7 +91,7 @@ export default function AiStudioPage() {
             ))}
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {(segments.data ?? []).map((s) => (
               <SegmentCard key={s.cluster_id} segment={s} />
             ))}
