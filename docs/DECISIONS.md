@@ -363,6 +363,65 @@ AI Studio segment grid.
 - (–) `mart_patient_segments` depends on the ML-produced source table existing —
   clustering must run once before those marts build on a fresh environment.
 
+## ADR-009: Snowflake key-pair (JWT) authentication for headless services
+
+**Date:** 2026-07-22
+**Status:** Accepted
+
+**Context.** Snowflake began enforcing MFA on the account. The API's Snowflake
+connection is created headless at startup (the lifespan-managed `app.state.sf_conn`
+in `dermiq/api/main.py`), and every ingestion/dbt/Airflow task authenticates the
+same way with no interactive terminal. Password auth now triggers a TOTP challenge
+the initial connection has no way to satisfy, so `/health` reported
+`snowflake_reachable: false` and the pipeline broke. MFA caching does not help: the
+*first* authentication after the cache expires still requires a fresh TOTP code, so
+a long-lived process that restarts overnight is still stranded. The
+`client_session_keep_alive` heartbeat (see ADR on the session keep-alive dev fix)
+kept an *already-open* session alive, but could not solve the cold-start auth.
+
+**Decision.** Migrate to Snowflake key-pair authentication (RSA JWT) for all
+non-interactive access.
+
+- **2048-bit RSA keypair**, encrypted PKCS#8 private key at
+  `~/.ssh/snowflake_rsa_key.p8` (passphrase-protected, `0600`), public key at
+  `~/.ssh/snowflake_rsa_key.pub`. The public key is registered on the Snowflake user
+  via `ALTER USER ... SET RSA_PUBLIC_KEY`.
+- **Two new platform-core settings**: `snowflake_private_key_path` and
+  `snowflake_private_key_passphrase` (env: `SNOWFLAKE_PRIVATE_KEY_PATH`,
+  `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`). When `snowflake_private_key_path` is set,
+  `get_snowflake_connection` decrypts the key in memory (via `cryptography`, now a
+  declared direct dependency) and connects with `authenticator='SNOWFLAKE_JWT'` and
+  the DER-encoded `private_key`. The passphrase is used only to decrypt in-process
+  and never reaches the connector.
+- **Password auth remains as a fallback** for accounts that don't enforce MFA: if no
+  private key path is configured but a password is, the old path is used. If neither
+  is set, connection fails fast with a clear error. Key-pair takes precedence when
+  both are present.
+- JWT auth is fully headless — no MFA prompt — so the same mechanism works for the
+  API, ingestion, dbt, and Airflow.
+
+**Alternatives considered.**
+- *MFA caching* (`authenticator=username_password_mfa` + connection caching):
+  rejected — the cold-start auth still needs a fresh TOTP, which is exactly the
+  headless failure mode.
+- *Programmatic access tokens / OAuth*: heavier to stand up and rotate for a
+  single-operator dev account; key-pair is Snowflake's first-class recommendation
+  for service auth and is trivially rotatable via `ALTER USER`.
+- *Dropping MFA enforcement*: not ours to decide and the wrong direction for a
+  PHI-adjacent account.
+
+**Consequences.**
+- (+) Fully headless auth; `/health` reports `snowflake_reachable: true` again and
+  the pipeline runs unattended.
+- (+) Password path preserved as a fallback, so non-MFA environments are unaffected.
+- (+) Key rotation is a keypair regen + one `ALTER USER` — no code change.
+- (–) The private key + passphrase are now operational secrets to manage. In dev
+  they live in `~/.ssh` and `.env` (both gitignored); in prod they must come from
+  the secrets manager, and the key file must be mounted for Airflow workers.
+- (–) A live password (`SNOWFLAKE_PASSWORD`) still sits in `.env` as the documented
+  fallback even though MFA makes it non-functional on this account; it should be
+  removed or rotated out separately.
+
 ## How to add an ADR
 
 Follow the same template platform-core uses:
