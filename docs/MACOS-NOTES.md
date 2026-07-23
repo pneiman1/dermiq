@@ -49,7 +49,7 @@ The same tool is often named differently across package managers:
 |---|---|---|
 | AWS CLI | `awscli` | `awscli` (or the official bundle installer) |
 | Astronomer CLI | `astro` | install script: `curl -sSL https://install.astronomer.io \| sudo bash` |
-| Node.js | `node` (or `node@20`) | `nodejs` (via NodeSource or `nvm`) |
+| Node.js | `node` (or `node@22`) | `nodejs` (via NodeSource or `nvm`) |
 | PostgreSQL client | `libpq` (then link `psql`) | `postgresql-client` |
 | Python 3.12 | `python@3.12` | `python3.12` + `python3.12-venv` |
 

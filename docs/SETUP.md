@@ -17,15 +17,15 @@ WSL2. Steps are identical except where a callout marks **macOS** vs
 
 ---
 
-## 1. Install Node.js 20 (for the frontend)
+## 1. Install Node.js 22 (for the frontend)
 
 platform-core setup already covered Python 3.12, git, Docker, AWS/Astronomer.
-DermIQ's frontend additionally needs **Node.js 20+**.
+DermIQ's frontend additionally needs **Node.js 22+**.
 
 **macOS**
 ```bash
-brew install node            # or: brew install node@20
-node --version               # v20.x or newer
+brew install node            # or: brew install node@22
+node --version               # v22.x or newer
 ```
 
 **Linux / WSL2**
