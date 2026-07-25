@@ -37,7 +37,9 @@ SOURCE_TABLES: tuple[str, ...] = (
     "transactions",
     # chunk-11 inventory / consumables layer.
     "inventory_units",
+    "inventory_lots",
     "inventory_transactions",
+    "inventory_current_stock",
 )
 
 # Read via the least-privilege read-only role created in 01_schema.sql. Override

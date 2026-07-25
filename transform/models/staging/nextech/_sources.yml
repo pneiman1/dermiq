@@ -50,9 +50,17 @@ sources:
         description: Line-item revenue events tied to patient, provider, service.
       - name: inventory_units
         description: >
-          Consumable product master (chunk-11): one row per service consumable
-          with its real per-unit acquisition cost.
+          Consumable product master (chunk-11): one row per SKU with its real
+          per-unit cost, shelf life, and par level.
+      - name: inventory_lots
+        description: >
+          Receiving events (chunk-11): bulk orders received per SKU, each with a
+          per-lot actual cost and a shelf-life expiry date.
       - name: inventory_transactions
         description: >
-          Consumption events (chunk-11): product units burned to deliver each
-          sales transaction, with quantity, unit_cost and transaction_value.
+          FIFO draw-down movements (chunk-11): consumption / waste / expiry against
+          lots, with quantity, unit_cost and transaction_value.
+      - name: inventory_current_stock
+        description: >
+          Derived on-hand stock per SKU (chunk-11): on-hand quantity, oldest lot
+          expiry, remaining lots (JSON), and last movement date.

@@ -187,3 +187,67 @@ export interface RecallSummary {
   avg_recency_days: number | null;
   max_last_visit_date: string | null;
 }
+
+// ----- inventory (chunk-11) -----
+export interface InventorySummary {
+  total_inventory_value: string;
+  waste_rate_ttm: string | null;
+  waste_value_ttm: string;
+  items_below_par: number;
+  expiring_30d_count: number;
+  expiring_30d_value: string;
+}
+
+export interface InventoryStatusRow {
+  sku: string;
+  sku_name: string;
+  service_code: string;
+  category: string;
+  unit_of_measure: string;
+  on_hand_quantity: string;
+  par_level: string;
+  unit_cost: string;
+  on_hand_value: string;
+  units_consumed_ttm: string;
+  days_of_supply: string | null;
+  oldest_lot_expiry: string | null;
+  last_transaction_at: string | null;
+  on_hand_lots: string | null;
+  stock_status: "out" | "low" | "adequate" | "overstock";
+}
+
+export interface TrueMarginRow {
+  service_code: string;
+  service_name: string;
+  service_category: string;
+  transactions_ttm: number;
+  units_consumed_ttm: string;
+  revenue_ttm: string;
+  consumables_cost_ttm: string;
+  true_margin_ttm: string;
+  true_margin_pct: string | null;
+  catalog_margin_pct: string | null;
+}
+
+export interface WasteBySkuRow {
+  service_code: string;
+  service_name: string;
+  category: string;
+  consumed_units_ttm: string;
+  waste_units_ttm: string;
+  waste_cost_ttm: string;
+  waste_rate: string | null;
+}
+
+export interface ExpiringItem {
+  lot_id: string;
+  sku: string;
+  sku_name: string;
+  category: string;
+  lot_number: string;
+  expiry_date: string;
+  days_to_expiry: number;
+  quantity_remaining: string;
+  estimated_value_at_risk: string;
+  urgency_level: "critical" | "warning" | "watch" | "future";
+}

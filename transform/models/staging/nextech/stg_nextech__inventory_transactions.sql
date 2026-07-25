@@ -11,6 +11,8 @@ renamed as (
         trim(transaction_id)                       as transaction_id,
         trim(service_code)                         as service_code,
         trim(unit_id)                              as unit_id,
+        trim(lot_id)                               as lot_id,
+        trim(movement_type)                        as movement_type,
         cast(quantity as number(18, 4))            as quantity,
         -- source unit_cost is NUMBER(20,4), transaction_value NUMBER(38,4);
         -- normalize both to the NUMBER(18,4) monetary standard so downstream

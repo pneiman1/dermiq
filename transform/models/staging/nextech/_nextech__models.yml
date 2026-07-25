@@ -262,7 +262,14 @@ models:
                 severity: error
 
   - name: stg_nextech__inventory_transactions
-    description: Consumption events; quantity/cost/value normalized to NUMBER(18,4).
+    description: Movements (consumption / waste / expiry); quantity/cost/value normalized to NUMBER(18,4).
+    data_tests:
+      # A sale backs every consumption/waste movement; expiry write-offs have none.
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "transaction_id is not null or movement_type = 'expiry'"
+          config:
+            severity: error
     columns:
       - name: inventory_transaction_id
         description: Primary key.
@@ -274,11 +281,8 @@ models:
               config:
                 severity: error
       - name: transaction_id
-        description: FK to stg_nextech__transactions (the sale this consumption backs).
+        description: FK to stg_nextech__transactions; null for expiry write-offs.
         data_tests:
-          - not_null:
-              config:
-                severity: error
           - relationships:
               arguments:
                 to: ref('stg_nextech__transactions')
@@ -309,8 +313,84 @@ models:
                 field: service_code
               config:
                 severity: error
+      - name: movement_type
+        description: consumption / waste / expiry.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - accepted_values:
+              arguments:
+                values: ["consumption", "waste", "expiry"]
+              config:
+                severity: warn
+      - name: lot_id
+        description: FK to stg_nextech__inventory_lots (null only for unallocatable draws).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__inventory_lots')
+                field: lot_id
+              config:
+                severity: error
       - name: transaction_value
         description: quantity * unit_cost (NUMBER(18,4)).
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+
+  - name: stg_nextech__inventory_lots
+    description: Receiving events; per-lot actual cost normalized to NUMBER(18,4).
+    columns:
+      - name: lot_id
+        description: Primary key.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: sku
+        description: FK to stg_nextech__inventory_units.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__inventory_units')
+                field: unit_id
+              config:
+                severity: error
+      - name: unit_cost_actual
+        description: Per-lot actual acquisition cost (NUMBER(18,4)).
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+
+  - name: stg_nextech__inventory_current_stock
+    description: Derived on-hand stock per SKU.
+    columns:
+      - name: sku
+        description: Primary key / FK to stg_nextech__inventory_units.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__inventory_units')
+                field: unit_id
+              config:
+                severity: error
+      - name: on_hand_quantity
+        description: On-hand units today (NUMBER(18,4)).
         data_tests:
           - not_null:
               config:

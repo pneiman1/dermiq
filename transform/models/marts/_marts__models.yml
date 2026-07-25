@@ -109,6 +109,65 @@ models:
               config:
                 severity: warn
 
+  - name: mart_inventory_status
+    description: One row per SKU — on-hand stock, par level, days of supply, status.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "on_hand_quantity >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "on_hand_value >= 0"
+    columns:
+      - name: sku
+        description: Grain — inventory SKU.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: stock_status
+        description: out / low / adequate / overstock.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["out", "low", "adequate", "overstock"]
+              config:
+                severity: warn
+
+  - name: mart_expiring_soon
+    description: One row per on-hand lot with a future expiry — days to expiry, quantity, value at risk.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "quantity_remaining > 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "estimated_value_at_risk >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "days_to_expiry >= 0"
+    columns:
+      - name: lot_id
+        description: Grain — inventory lot.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: urgency_level
+        description: critical / warning / watch / future.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["critical", "warning", "watch", "future"]
+              config:
+                severity: warn
+
   - name: mart_recall_queue
     description: One row per lapsing/lapsed patient to recall, with contact, last provider, and priority.
     columns:

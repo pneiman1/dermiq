@@ -1,12 +1,13 @@
-"""Load the inventory / consumables layer into the Postgres source database (chunk-11).
+"""Load the inventory / consumables lifecycle into the Postgres source DB (chunk-11).
 
-This is *additive*: it reads the sales transactions already present in
-``nextech_source`` and attaches consumption events to them. It does not touch
+Additive: reads the sales transactions already in ``nextech_source`` and builds
+the full inventory lifecycle around them — product master, received lots, FIFO
+consumption/waste/expiry movements, and derived on-hand stock. It does not touch
 providers/services/patients/appointments/transactions, so every existing
-downstream mart is unaffected. Safe to re-run — it truncates only the two
-inventory tables and regenerates deterministically.
+downstream mart is unaffected. Safe to re-run — it (re)creates and reloads only
+the inventory tables, deterministically.
 
-Run after the main seed (scripts/seed_postgres.py) has populated transactions.
+Run after scripts/seed_postgres.py has populated transactions.
 """
 from __future__ import annotations
 
@@ -18,10 +19,7 @@ import psycopg2.extras
 
 from platform_core.utils.logging import configure_logging, get_logger
 
-from dermiq.seed.inventory import (
-    INVENTORY_UNITS,
-    generate_inventory_transactions,
-)
+from dermiq.seed.inventory import generate_inventory
 
 log = get_logger(__name__)
 
@@ -30,71 +28,80 @@ POSTGRES_URL = os.environ.get(
     "postgresql://dermiq:dermiq_local_only@localhost:5432/del_mar_source",
 )
 
-# The table DDL lives with the rest of the source schema; run it here so an
-# already-running container (where init scripts don't re-run) gets the tables.
 _DDL_PATH = Path(__file__).resolve().parents[1] / "infra" / "postgres" / "init" / "02_inventory.sql"
 
 
-def _ensure_tables(cur) -> None:
-    log.info("ensure_inventory_tables")
+def _apply_schema(cur) -> None:
+    """(Re)create the inventory tables so the schema is always in sync."""
+    log.info("apply_inventory_schema")
     cur.execute(_DDL_PATH.read_text())
 
 
-def _truncate_inventory(cur) -> None:
-    log.info("truncate_inventory_tables")
-    cur.execute(
-        "TRUNCATE TABLE nextech_source.inventory_transactions, "
-        "nextech_source.inventory_units RESTART IDENTITY CASCADE"
-    )
-
-
-def _load_units(cur) -> int:
+def _load_units(cur, units) -> int:
     rows = [
-        (
-            u.unit_id,
-            u.product_name,
-            u.category,
-            u.unit_of_measure,
-            u.service_code,
-            u.units_per_service,
-            u.unit_cost,
-        )
-        for u in INVENTORY_UNITS
+        (u.unit_id, u.product_name, u.category, u.unit_of_measure, u.service_code,
+         u.units_per_service, u.unit_cost, u.shelf_life_months, u.par_level)
+        for u in units
     ]
     psycopg2.extras.execute_batch(
         cur,
         """INSERT INTO nextech_source.inventory_units
            (unit_id, product_name, category, unit_of_measure, service_code,
-            units_per_service, unit_cost)
-           VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-        rows,
-        page_size=200,
+            units_per_service, unit_cost, shelf_life_months, par_level)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+        rows, page_size=200,
     )
     return len(rows)
 
 
-def _load_inventory_transactions(cur, inv_txns) -> int:
+def _load_lots(cur, lots) -> int:
     rows = [
-        (
-            it.inventory_transaction_id,
-            it.transaction_id,
-            it.service_code,
-            it.unit_id,
-            it.quantity,
-            it.unit_cost,
-            it.transaction_value,
-            it.consumed_date,
-        )
-        for it in inv_txns
+        (l.lot_id, l.sku, l.lot_number, l.received_quantity, l.received_date,
+         l.expiry_date, l.unit_cost_actual)
+        for l in lots
+    ]
+    psycopg2.extras.execute_batch(
+        cur,
+        """INSERT INTO nextech_source.inventory_lots
+           (lot_id, sku, lot_number, received_quantity, received_date,
+            expiry_date, unit_cost_actual)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+        rows, page_size=1000,
+    )
+    return len(rows)
+
+
+def _load_movements(cur, movements) -> int:
+    rows = [
+        (m.inventory_transaction_id, m.transaction_id, m.service_code, m.unit_id,
+         m.lot_id, m.movement_type, m.quantity, m.unit_cost, m.transaction_value,
+         m.consumed_date)
+        for m in movements
     ]
     psycopg2.extras.execute_batch(
         cur,
         """INSERT INTO nextech_source.inventory_transactions
            (inventory_transaction_id, transaction_id, service_code, unit_id,
-            quantity, unit_cost, transaction_value, consumed_date)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-        rows,
-        page_size=1000,
+            lot_id, movement_type, quantity, unit_cost, transaction_value,
+            consumed_date)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+        rows, page_size=1000,
+    )
+    return len(rows)
+
+
+def _load_current_stock(cur, stock) -> int:
+    rows = [
+        (s.sku, s.on_hand_quantity, s.oldest_lot_expiry, s.on_hand_lots,
+         s.last_transaction_at)
+        for s in stock
+    ]
+    psycopg2.extras.execute_batch(
+        cur,
+        """INSERT INTO nextech_source.inventory_current_stock
+           (sku, on_hand_quantity, oldest_lot_expiry, on_hand_lots, last_transaction_at)
+           VALUES (%s, %s, %s, %s, %s)""",
+        rows, page_size=200,
     )
     return len(rows)
 
@@ -105,8 +112,7 @@ def main() -> None:
 
     with psycopg2.connect(POSTGRES_URL) as conn:
         with conn.cursor() as cur:
-            _ensure_tables(cur)
-            # Read the sales transactions we are attaching consumption to.
+            _apply_schema(cur)
             cur.execute(
                 "SELECT transaction_id, service_code, transaction_date "
                 "FROM nextech_source.transactions"
@@ -114,22 +120,25 @@ def main() -> None:
             txn_rows = cur.fetchall()
             log.info("read_transactions", rows=len(txn_rows))
 
-            inv_txns = generate_inventory_transactions(txn_rows)
+            units, lots, movements, stock = generate_inventory(txn_rows)
 
-            _truncate_inventory(cur)
-            n_units = _load_units(cur)
-            n_inv_txn = _load_inventory_transactions(cur, inv_txns)
+            n_units = _load_units(cur, units)
+            n_lots = _load_lots(cur, lots)
+            n_mov = _load_movements(cur, movements)
+            n_stock = _load_current_stock(cur, stock)
         conn.commit()
 
     log.info(
         "seed_inventory_complete",
-        inventory_units=n_units,
-        inventory_transactions=n_inv_txn,
+        inventory_units=n_units, inventory_lots=n_lots,
+        inventory_transactions=n_mov, current_stock=n_stock,
         sales_transactions_seen=len(txn_rows),
     )
-    print("\n=== Inventory layer loaded ===")
+    print("\n=== Inventory lifecycle loaded ===")
     print(f"  inventory_units        : {n_units:,}")
-    print(f"  inventory_transactions : {n_inv_txn:,}")
+    print(f"  inventory_lots         : {n_lots:,}")
+    print(f"  inventory_transactions : {n_mov:,}  (consumption / waste / expiry)")
+    print(f"  current_stock rows     : {n_stock:,}")
     print(f"  (from {len(txn_rows):,} sales transactions)")
     print()
 

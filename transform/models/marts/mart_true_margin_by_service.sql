@@ -36,12 +36,16 @@ revenue_ttm as (
 
 consumables_ttm as (
 
+    -- True cost-of-goods for a delivered service = product consumed + waste
+    -- (overage) during delivery. Expiry write-offs are an inventory loss, not a
+    -- per-service delivery cost, so they are excluded here.
     select
         service_code,
-        sum(quantity)             as units_consumed_ttm,
-        sum(transaction_value)    as consumables_cost_ttm
-    from {{ ref('stg_nextech__inventory_transactions') }}
+        sum(quantity)       as units_consumed_ttm,
+        sum(movement_cost)  as consumables_cost_ttm
+    from {{ ref('int_inventory_movements') }}
     where consumed_date >= dateadd('month', -12, current_date)
+      and movement_type in ('consumption', 'waste')
     group by 1
 
 ),

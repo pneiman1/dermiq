@@ -17,6 +17,11 @@ import type {
   RecallSummary,
   RevenueDailyRow,
   Tenant,
+  ExpiringItem,
+  InventoryStatusRow,
+  InventorySummary,
+  TrueMarginRow,
+  WasteBySkuRow,
 } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
@@ -103,4 +108,11 @@ export const api = {
 
   getSegmentMembers: (clusterId: number, limit?: number) =>
     get<PatientSegmentMember[]>(`/segments/${clusterId}/members`, { limit }),
+
+  // Inventory tab (chunk-11).
+  getInventorySummary: () => get<InventorySummary>("/inventory/summary"),
+  getInventoryStatus: () => get<InventoryStatusRow[]>("/inventory/status"),
+  getInventoryWaste: (limit?: number) => get<WasteBySkuRow[]>("/inventory/waste", { limit }),
+  getInventoryTrueMargin: () => get<TrueMarginRow[]>("/inventory/true-margin"),
+  getInventoryExpiring: (days?: number) => get<ExpiringItem[]>("/inventory/expiring", { days }),
 };

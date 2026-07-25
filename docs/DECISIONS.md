@@ -476,6 +476,56 @@ existing chunk conventions.
 - (–) A follow-up (ADR-009 completion) was required: dbt's `profiles.yml` still used
   password auth and would fail under MFA, so it was migrated to key-pair too.
 
+## ADR-011: Inventory extension — lots, stock, expiring (chunk-11 extension)
+
+**Date:** 2026-07-25
+**Status:** Accepted
+
+**Context.** ADR-010 built the true-margin data layer, but the Inventory tab shows
+four things — true margin, waste, stock/par status, and expiring lots — and stock
+and expiry had no backing data. This extension adds the missing model so the tab
+runs entirely on real (fixture) data, plus the API endpoints and the frontend
+rebuild that replace the roadmap placeholder.
+
+**Decision.** Extend the consumables model with a full receiving/expiry lifecycle
+and surface it end to end.
+
+- **Source model.** New `inventory_lots` (receiving events: per-lot actual cost +
+  shelf-life expiry) and `inventory_current_stock` (derived on-hand per SKU).
+  `inventory_transactions` gains `lot_id` + `movement_type` (consumption / waste /
+  expiry); `transaction_id` is now nullable (expiry write-offs have no sale).
+- **Deterministic simulation.** The seed does demand-driven reordering with FIFO
+  draw-down against lots; waste is overage on ~9% of draws; expiry comes from
+  short-dated / clearance / opening over-stock that outlives shelf life. Still
+  additive (reads existing sales; other marts untouched). Calibrated to realistic
+  figures: ~$220k on-hand, 4.5% waste rate, a handful of below-par and expiring-soon
+  items. **These are generated fixtures, not the earlier report's numbers.**
+- **dbt.** New staging for lots + current stock, `int_inventory_movements` (enriched
+  movement grain the marts read), and marts `mart_inventory_status` and
+  `mart_expiring_soon`; `mart_true_margin_by_service` now sources COGS from the
+  movement grain (consumption + waste; expiry excluded from per-service margin).
+  Every monetary column normalized to NUMBER(18,4). `dbt build` clean.
+- **API + UI.** New `/inventory/{summary,status,true-margin,waste,expiring}` router;
+  the Inventory tab is rebuilt with a KPI strip and four sections (waste chart, true-
+  margin surprises, stock status, expiring lots). RAG corpus gains an inventory
+  summary + expiring summary doc so the assistant can answer stock/expiry questions.
+
+**Alternatives considered.**
+- A daily `int_stock_position` time-series (as first sketched): not built — no mart
+  or endpoint consumes it; current stock is a point-in-time table. Add later if a
+  stock-trend view is needed.
+- Re-running the full seed_postgres: rejected — sales PKs are random UUIDs, so a full
+  re-seed would churn every mart for no benefit; the additive path is deterministic.
+
+**Consequences.**
+- (+) Inventory tab runs fully on real data; AI Studio answers expiry/stock questions.
+- (+) Existing marts untouched (additive seed).
+- (–) The lifecycle is a hand-calibrated fixture, not a recovery of the phantom
+  chunk-11 numbers.
+- (–) The RAG corpus extension and an LLM `temperature`-deprecation fix live in
+  chunk-10 files (`dermiq/rag/`, `platform_core/llm/`) that remain uncommitted in
+  this repo, so they are not part of this commit.
+
 ## How to add an ADR
 
 Follow the same template platform-core uses:

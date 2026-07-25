@@ -1,6 +1,27 @@
 version: 2
 
 models:
+  - name: int_inventory_movements
+    description: One row per inventory movement (consumption / waste / expiry) with service, product and lot context.
+    columns:
+      - name: inventory_transaction_id
+        description: Grain — one row per movement.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: movement_type
+        description: consumption / waste / expiry.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["consumption", "waste", "expiry"]
+              config:
+                severity: warn
+
   - name: int_visit_economics
     description: One row per completed appointment with revenue, category split, cross-sell flags, and duration.
     data_tests:

@@ -205,3 +205,67 @@ class PatientSegmentMember(BaseModel):
     recency_tier: str | None
     last_visit_date: date | None
     dominant_provider_name: str | None
+
+
+# ----- inventory (chunk-11) -----
+class TrueMarginRow(BaseModel):
+    service_code: str
+    service_name: str
+    service_category: str
+    transactions_ttm: int
+    units_consumed_ttm: Decimal
+    revenue_ttm: Decimal
+    consumables_cost_ttm: Decimal
+    true_margin_ttm: Decimal
+    true_margin_pct: Decimal | None
+    catalog_margin_pct: Decimal | None
+
+
+class InventoryStatusRow(BaseModel):
+    sku: str
+    sku_name: str
+    service_code: str
+    category: str
+    unit_of_measure: str
+    on_hand_quantity: Decimal
+    par_level: Decimal
+    unit_cost: Decimal
+    on_hand_value: Decimal
+    units_consumed_ttm: Decimal
+    days_of_supply: Decimal | None
+    oldest_lot_expiry: date | None
+    last_transaction_at: date | None
+    on_hand_lots: str | None
+    stock_status: str
+
+
+class WasteBySkuRow(BaseModel):
+    service_code: str
+    service_name: str
+    category: str
+    consumed_units_ttm: Decimal
+    waste_units_ttm: Decimal
+    waste_cost_ttm: Decimal
+    waste_rate: Decimal | None
+
+
+class ExpiringItem(BaseModel):
+    lot_id: str
+    sku: str
+    sku_name: str
+    category: str
+    lot_number: str
+    expiry_date: date
+    days_to_expiry: int
+    quantity_remaining: Decimal
+    estimated_value_at_risk: Decimal
+    urgency_level: str
+
+
+class InventorySummary(BaseModel):
+    total_inventory_value: Decimal
+    waste_rate_ttm: Decimal | None
+    waste_value_ttm: Decimal
+    items_below_par: int
+    expiring_30d_count: int
+    expiring_30d_value: Decimal

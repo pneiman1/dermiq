@@ -280,6 +280,42 @@ curl -s "$BASE/segments/0/members?limit=50" -H "$H"
 
 ---
 
+## Inventory (chunk-11)
+
+Consumables lifecycle over the inventory marts: true margin, waste, stock status,
+and expiring lots. All monetary fields are Decimal strings.
+
+### `GET /inventory/summary`
+
+KPI-strip aggregates: `total_inventory_value`, `waste_rate_ttm`, `waste_value_ttm`
+(overage + expiry write-offs), `items_below_par`, `expiring_30d_count`,
+`expiring_30d_value`.
+
+### `GET /inventory/status`
+
+One row per SKU — `on_hand_quantity`, `par_level`, `days_of_supply`, `on_hand_value`,
+`stock_status` (`out` / `low` / `adequate` / `overstock`). Sorted out/low first.
+
+### `GET /inventory/true-margin`
+
+One row per consumable service — `revenue_ttm`, `consumables_cost_ttm`,
+`true_margin_pct`, `catalog_margin_pct`. Sorted by the catalog-vs-true gap (biggest
+surprises first).
+
+### `GET /inventory/waste?limit=50`
+
+Per-SKU overage (TTM): `consumed_units_ttm`, `waste_units_ttm`, `waste_cost_ttm`,
+`waste_rate`. Sorted by waste rate desc.
+
+### `GET /inventory/expiring?days=60`
+
+On-hand lots expiring within `days` (default 60, 1–365), soonest first:
+`lot_number`, `expiry_date`, `days_to_expiry`, `quantity_remaining`,
+`estimated_value_at_risk`, `urgency_level` (`critical` <14d / `warning` <30d /
+`watch` <60d).
+
+---
+
 ## Errors
 
 | Status | When |
