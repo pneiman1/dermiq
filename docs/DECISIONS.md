@@ -422,6 +422,60 @@ non-interactive access.
   fallback even though MFA makes it non-functional on this account; it should be
   removed or rotated out separately.
 
+## ADR-010: Inventory / true-margin layer, built fresh (chunk-11)
+
+**Date:** 2026-07-25
+**Status:** Accepted
+
+**Context.** The Inventory tab needs service-level *true* margin — revenue net of
+the real consumables consumed — versus the catalog margin (`default_price -
+default_cost`). A prior chunk-11 was reported to exist, but a full audit (disk,
+`git log --all` on local + `origin`, and Snowflake `INFORMATION_SCHEMA`) found no
+trace of it on this machine or `origin`: no `mart_true_margin_by_service`, no
+inventory source/staging, no materialized objects. It was never pushed here. So
+this chunk-11 is built **from scratch**; its numbers are generated here and do
+**not** reproduce any figures from the earlier report.
+
+**Decision.** Add a consumables layer as a full vertical slice, following the
+existing chunk conventions.
+
+- **Source model.** Two new `nextech_source` tables: `inventory_units` (consumable
+  product master with a real per-unit acquisition `unit_cost`) and
+  `inventory_transactions` (consumption events tying product units to each sales
+  transaction, with `quantity`, `unit_cost`, `transaction_value`).
+- **Additive, deterministic seed.** `transaction_id`/`appointment_id` are random
+  `uuid4` (not seeded), so re-running the full seeder would churn every PK and all
+  downstream marts. Instead `scripts/seed_inventory.py` reads the *existing*
+  transactions and attaches consumption to them, touching only the two inventory
+  tables. Every other mart is byte-identical. Consumables cost is set above catalog
+  `default_cost` (a per-category factor plus ~7% waste), so true margin lands below
+  catalog margin — the point of the feature. Result: true margin ≈ 5–6 pts under
+  catalog (e.g. BOTOX-40 61.2% vs 66.7%).
+- **Type-cast normalization (the original brief).** Source monetary precisions
+  vary on purpose — `services.default_cost` NUMBER(10,2), `inventory_units.unit_cost`
+  NUMBER(20,4), `inventory_transactions.transaction_value` NUMBER(38,4). Staging
+  casts **every** monetary column to the NUMBER(18,4) standard set in chunk-3, so
+  the `revenue - consumables_cost` arithmetic in the mart has no
+  NUMBER(20,4)/NUMBER(38,4) precision collision. `dbt build` is clean: 26 tests,
+  0 warnings, 0 errors.
+- **Mart.** `mart_true_margin_by_service`, grain = consumable service, TTM window,
+  columns `revenue_ttm`, `consumables_cost_ttm`, `true_margin_ttm`,
+  `true_margin_pct`, `catalog_margin_pct` (carried for contrast). 33 rows.
+
+**Alternatives considered.**
+- Full re-seed with inventory inline: rejected — random-UUID PKs would perturb
+  every existing mart on re-ingest for no benefit.
+- Casting only at the mart: rejected — normalizing at staging (chunk-3 standard)
+  fixes the precision spread once, for every consumer.
+
+**Consequences.**
+- (+) True margin is available and grounded in modeled consumption; clean dbt run.
+- (+) Existing marts untouched (additive seed).
+- (–) The consumption model is synthetic and calibrated by hand; it is a fixture,
+  not a recovery of the earlier chunk-11 numbers.
+- (–) A follow-up (ADR-009 completion) was required: dbt's `profiles.yml` still used
+  password auth and would fail under MFA, so it was migrated to key-pair too.
+
 ## How to add an ADR
 
 Follow the same template platform-core uses:

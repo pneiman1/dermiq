@@ -81,6 +81,31 @@ RAW_COLUMN_TYPES: dict[str, dict[str, str]] = {
         "transaction_date": "DATE",
         "created_at": "TIMESTAMP_TZ",
     },
+    # chunk-11 inventory/consumables. Source precisions intentionally vary
+    # (NUMBER(20,4), NUMBER(38,4)) vs services.default_cost NUMBER(10,2); staging
+    # normalizes every monetary column to NUMBER(18,4). See docs/DECISIONS.md ADR-010.
+    "inventory_units": {
+        "unit_id": "VARCHAR",
+        "product_name": "VARCHAR",
+        "category": "VARCHAR",
+        "unit_of_measure": "VARCHAR",
+        "service_code": "VARCHAR",
+        "units_per_service": "NUMBER(12, 4)",
+        "unit_cost": "NUMBER(20, 4)",
+        "created_at": "TIMESTAMP_TZ",
+        "updated_at": "TIMESTAMP_TZ",
+    },
+    "inventory_transactions": {
+        "inventory_transaction_id": "VARCHAR",
+        "transaction_id": "VARCHAR",
+        "service_code": "VARCHAR",
+        "unit_id": "VARCHAR",
+        "quantity": "NUMBER(12, 4)",
+        "unit_cost": "NUMBER(20, 4)",
+        "transaction_value": "NUMBER(38, 4)",
+        "consumed_date": "DATE",
+        "created_at": "TIMESTAMP_TZ",
+    },
 }
 
 # Lineage columns ingestion appends to every raw table (see source_to_raw).

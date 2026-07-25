@@ -48,3 +48,11 @@ sources:
         description: Scheduled visits with status and actual arrival/departure.
       - name: transactions
         description: Line-item revenue events tied to patient, provider, service.
+      - name: inventory_units
+        description: >
+          Consumable product master (chunk-11): one row per service consumable
+          with its real per-unit acquisition cost.
+      - name: inventory_transactions
+        description: >
+          Consumption events (chunk-11): product units burned to deliver each
+          sales transaction, with quantity, unit_cost and transaction_value.

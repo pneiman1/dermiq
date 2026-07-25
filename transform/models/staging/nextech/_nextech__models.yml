@@ -213,3 +213,105 @@ models:
                 values: ["card", "cash", "carecredit"]
               config:
                 severity: warn
+
+  - name: stg_nextech__inventory_units
+    description: Consumable product master; monetary columns normalized to NUMBER(18,4).
+    columns:
+      - name: unit_id
+        description: Primary key.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: service_code
+        description: FK to stg_nextech__services (the service that consumes this unit).
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__services')
+                field: service_code
+              config:
+                severity: error
+      - name: category
+        description: Consumable category.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["injectable", "energy_device", "skincare_retail"]
+              config:
+                severity: warn
+      - name: unit_of_measure
+        description: Unit the product is dosed in.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["unit", "syringe", "treatment", "product"]
+              config:
+                severity: warn
+      - name: unit_cost
+        description: Real acquisition cost per unit_of_measure (NUMBER(18,4)).
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+
+  - name: stg_nextech__inventory_transactions
+    description: Consumption events; quantity/cost/value normalized to NUMBER(18,4).
+    columns:
+      - name: inventory_transaction_id
+        description: Primary key.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: transaction_id
+        description: FK to stg_nextech__transactions (the sale this consumption backs).
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__transactions')
+                field: transaction_id
+              config:
+                severity: error
+      - name: unit_id
+        description: FK to stg_nextech__inventory_units.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__inventory_units')
+                field: unit_id
+              config:
+                severity: error
+      - name: service_code
+        description: FK to stg_nextech__services.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('stg_nextech__services')
+                field: service_code
+              config:
+                severity: error
+      - name: transaction_value
+        description: quantity * unit_cost (NUMBER(18,4)).
+        data_tests:
+          - not_null:
+              config:
+                severity: error

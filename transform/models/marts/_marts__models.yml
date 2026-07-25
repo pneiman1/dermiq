@@ -75,6 +75,40 @@ models:
               config:
                 severity: warn
 
+  - name: mart_true_margin_by_service
+    description: One row per consumable service — TTM true margin from real cost-of-goods.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "revenue_ttm >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "consumables_cost_ttm >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "true_margin_ttm = revenue_ttm - consumables_cost_ttm"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "true_margin_pct <= 1"
+    columns:
+      - name: service_code
+        description: Grain — consumable service.
+        data_tests:
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
+      - name: service_category
+        description: Service category (consumable categories only).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["injectable", "energy_device", "skincare_retail"]
+              config:
+                severity: warn
+
   - name: mart_recall_queue
     description: One row per lapsing/lapsed patient to recall, with contact, last provider, and priority.
     columns:
