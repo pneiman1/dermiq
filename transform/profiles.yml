@@ -10,7 +10,12 @@ dermiq:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('SNOWFLAKE_USER') }}"
-      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      # Key-pair (JWT) auth — Snowflake enforces MFA, which password auth cannot
+      # satisfy headless. Mirrors platform-core's connection helper (ADR-009).
+      # env_var keeps the key path off disk; ~ is expanded to $HOME for the
+      # connector, which does not expand it itself.
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') | replace('~', env_var('HOME')) }}"
+      private_key_passphrase: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
       role: "{{ env_var('SNOWFLAKE_ROLE', 'ACCOUNTADMIN') }}"
       warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH') }}"
       database: "{{ env_var('SNOWFLAKE_DATABASE', 'DERMIQ_DEV') }}"
