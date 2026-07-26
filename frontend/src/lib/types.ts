@@ -188,6 +188,16 @@ export interface RecallSummary {
   max_last_visit_date: string | null;
 }
 
+export interface ChatSource {
+  title: string;
+  source: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  sources: ChatSource[];
+}
+
 // ----- inventory (chunk-11) -----
 export interface InventorySummary {
   total_inventory_value: string;

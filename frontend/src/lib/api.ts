@@ -3,9 +3,13 @@
 import type {
   AcquisitionByMonthRow,
   ChannelAttributionRow,
+  ChatResponse,
   DispositionDailyRow,
+  ExpiringItem,
   FlowByHourRow,
   Health,
+  InventoryStatusRow,
+  InventorySummary,
   NoShowByProviderRow,
   PatientSegment,
   PatientSegmentMember,
@@ -17,9 +21,6 @@ import type {
   RecallSummary,
   RevenueDailyRow,
   Tenant,
-  ExpiringItem,
-  InventoryStatusRow,
-  InventorySummary,
   TrueMarginRow,
   WasteBySkuRow,
 } from "./types";
@@ -42,6 +43,19 @@ function qs(params?: Params): string {
 async function get<T>(path: string, params?: Params): Promise<T> {
   const res = await fetch(`${BASE}${path}${qs(params)}`, {
     headers: { "X-Tenant-ID": TENANT },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`API ${res.status} ${res.statusText} on ${path}`);
+  }
+  return (await res.json()) as T;
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "X-Tenant-ID": TENANT, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
     cache: "no-store",
   });
   if (!res.ok) {
@@ -108,6 +122,9 @@ export const api = {
 
   getSegmentMembers: (clusterId: number, limit?: number) =>
     get<PatientSegmentMember[]>(`/segments/${clusterId}/members`, { limit }),
+
+  // RAG-grounded assistant (chunk-10). Retrieval + Claude over the practice corpus.
+  askChat: (question: string) => post<ChatResponse>("/chat", { question }),
 
   // Inventory tab (chunk-11).
   getInventorySummary: () => get<InventorySummary>("/inventory/summary"),

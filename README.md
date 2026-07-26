@@ -60,11 +60,7 @@ toolkit (config, Snowflake connection, RAG, LLM client).
 | **Flow** | Appointment dispositions, no-show/cancel rates, day×hour heatmap | Live |
 | **Recall** | Ranked queue of lapsing patients + revenue at risk | Live |
 | **Inventory** | Consumables true margin, waste, stock/par status, expiring lots | Live (chunk-11) |
-| **AI Studio** | RAG chat grounded in the practice's marts | Live (chunk-10, see note) |
-
-> **Status note:** chunk-10 (RAG / AI Studio) is implemented and running against
-> Snowflake but is **not yet committed to `main`** — it currently lives in the
-> working tree. See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
+| **AI Studio** | RAG chat grounded in the practice's marts | Live (chunk-10) |
 
 ## Stack
 
@@ -119,7 +115,7 @@ Silicon), Linux, and Windows/WSL2 (see [`docs/MACOS-NOTES.md`](docs/MACOS-NOTES.
 | 8 | Apache Airflow orchestration via Astronomer + Cosmos |
 | 9 | Unsupervised patient clustering (k-means, 7 segments) |
 | — | Snowflake key-pair (JWT) auth migration (ADR-009); Node 20→22 |
-| 10 | RAG chat over the marts (Anthropic Claude + local embeddings) — *uncommitted on `main`* |
+| 10 | RAG chat over the marts (Anthropic Claude + local embeddings) |
 | 11 | Real inventory data: lots, stock, waste, expiry, true margin |
 | — | Shimmer gradient wordmark + top-bar refinement |
 

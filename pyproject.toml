@@ -48,6 +48,13 @@ ml = [
     "scikit-learn>=1.4",
 ]
 
+# RAG chat (chunk-10): local embeddings + Anthropic generation. Heavy —
+# sentence-transformers pulls torch. Mirrors platform-core[llm,sentence-transformers].
+rag = [
+    "anthropic>=0.40",
+    "sentence-transformers>=2.7",
+]
+
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"

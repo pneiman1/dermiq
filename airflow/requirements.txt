@@ -9,3 +9,6 @@ structlog>=24
 pydantic-settings>=2
 # scikit-learn for the weekly patient-clustering DAG (dermiq.ml.clustering).
 scikit-learn>=1.4
+# sentence-transformers for the daily RAG corpus refresh (dermiq.rag). Pulls torch,
+# so it materially increases the image size — the corpus build embeds locally.
+sentence-transformers>=2.7

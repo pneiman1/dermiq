@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ----- meta -----
@@ -205,6 +205,23 @@ class PatientSegmentMember(BaseModel):
     recency_tier: str | None
     last_visit_date: date | None
     dominant_provider_name: str | None
+
+
+# ----- chat (RAG) -----
+
+class ChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=1000)
+
+
+class ChatSource(BaseModel):
+    """A retrieved corpus document surfaced as a citation."""
+    title: str
+    source: str
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[ChatSource]
 
 
 # ----- inventory (chunk-11) -----

@@ -21,7 +21,7 @@ dbt → FastAPI → Next.js, orchestrated by Airflow):
 | 7.5 | Cross-platform setup docs |
 | 8 | Airflow via Astronomer + Cosmos (daily pipeline) |
 | 9 | Unsupervised patient clustering (k-means, 7 segments) |
-| 10 | RAG chat over marts (Claude + local embeddings) — **not yet committed to `main`** |
+| 10 | RAG chat over marts (Claude + local embeddings) |
 | 11 | Real inventory data: lots, stock, waste, expiry, true margin |
 
 Also shipped outside the chunk sequence: Snowflake key-pair auth migration
@@ -42,9 +42,6 @@ Also shipped outside the chunk sequence: Snowflake key-pair auth migration
 - **Manual corpus rebuild.** The RAG corpus is cached in the API process; a rebuild
   (`scripts/build_rag_corpus.py`) requires an API restart to take effect. Airflow
   refreshes it daily, but ad-hoc rebuilds are manual.
-- **chunk-10 (RAG) is uncommitted on `main`.** It runs (in Snowflake + the API and
-  its `platform_core.llm`/`rag` modules) but hasn't been committed; the same is
-  true of its platform-core modules. Needs a dedicated commit.
 - **Inventory data is synthetic fixtures.** chunk-11's lots/stock/expiry numbers are
   hand-calibrated generators, not a recovery of any prior report's figures.
 
