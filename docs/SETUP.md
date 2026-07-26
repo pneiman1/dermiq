@@ -74,6 +74,28 @@ Reuse the Snowflake credentials you already put in platform-core's `.env`:
 cp ../platform-core/.env .env
 ```
 
+**Snowflake auth is key-pair (JWT), not password.** Snowflake enforces MFA, which
+password auth can't satisfy for headless services (API, ingestion, dbt, Airflow),
+so key-pair is the primary path (see [DECISIONS](DECISIONS.md) ADR-009). Generate a
+key-pair once and register the public key on your Snowflake user:
+
+```bash
+# 2048-bit RSA, encrypted private key
+openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -outform PEM \
+  -out ~/.ssh/snowflake_rsa_key.p8 -passout pass:<passphrase>
+openssl rsa -in ~/.ssh/snowflake_rsa_key.p8 -passin pass:<passphrase> \
+  -pubout -out ~/.ssh/snowflake_rsa_key.pub
+# In Snowsight: ALTER USER <you> SET RSA_PUBLIC_KEY='<public key body, no headers>';
+```
+
+Then set in `.env` (both repos share these var names):
+
+```
+SNOWFLAKE_PRIVATE_KEY_PATH=~/.ssh/snowflake_rsa_key.p8
+SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=<passphrase>
+# SNOWFLAKE_PASSWORD is only a fallback for non-MFA accounts.
+```
+
 The Postgres source defaults already match `docker-compose.yml`, so no edits are
 needed for local dev.
 
@@ -97,6 +119,13 @@ python scripts/seed_postgres.py
 Generates ~18 months of deterministic (seed=42) Del Mar data and loads it into
 Postgres (~7 providers, 38 services, 3,500 patients, and their appointments &
 transactions). Safe to re-run (truncates first).
+
+Then load the inventory / consumables lifecycle (chunk-11), which attaches lots,
+stock, and consumption to the existing transactions:
+
+```bash
+python scripts/seed_inventory.py
+```
 
 ## 7. Land the source into Snowflake (RAW)
 

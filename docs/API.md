@@ -314,6 +314,17 @@ On-hand lots expiring within `days` (default 60, 1–365), soonest first:
 `estimated_value_at_risk`, `urgency_level` (`critical` <14d / `warning` <30d /
 `watch` <60d).
 
+**Examples**
+
+```bash
+H='X-Tenant-ID: del_mar'
+curl -s -H "$H" localhost:8000/api/v1/inventory/summary
+curl -s -H "$H" localhost:8000/api/v1/inventory/status
+curl -s -H "$H" localhost:8000/api/v1/inventory/true-margin
+curl -s -H "$H" "localhost:8000/api/v1/inventory/waste?limit=10"
+curl -s -H "$H" "localhost:8000/api/v1/inventory/expiring?days=60"
+```
+
 ---
 
 ## Errors

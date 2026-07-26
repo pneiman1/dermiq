@@ -12,6 +12,26 @@ and are inherited by every vertical.
 This document is append-only. Past decisions are never edited or deleted — they
 are superseded by new entries if direction changes.
 
+## Index
+
+- [ADR-001](#adr-001-consume-platform-core-as-a-local-editable-install-no-version-pin-yet) — Consume platform-core as a local editable install
+- [ADR-002](#adr-002-simulate-the-emr-source-as-a-nextech-shaped-postgres-database) — Simulate the EMR source as a Nextech-shaped Postgres DB
+- [ADR-003](#adr-003-source--raw-ingestion--least-privilege-read-full-refresh-faithful-copy) — Source → raw ingestion: least-privilege, full-refresh, faithful copy
+- [ADR-004](#adr-004-dbt-staging-layer--one-to-one-cleanedtyped-views-over-raw) — dbt staging layer: 1:1 cleaned/typed views over raw
+- [ADR-005](#adr-005-ingestion-must-declare-explicit-snowflake-column-types-tech-debtingestion) — Explicit Snowflake column types on ingestion
+- [ADR-006](#adr-006-orchestrate-the-pipeline-with-airflow-astronomer--astronomer-cosmos) — Orchestrate with Airflow (Astronomer + Cosmos)
+- [ADR-007](#adr-007-unsupervised-k-means-for-patient-segmentation-chunk-9) — Unsupervised k-means patient segmentation
+- [ADR-008](#adr-008-retrieval-grounded-ai-studio-chat-chunk-10) — Retrieval-grounded AI Studio chat (RAG)
+- [ADR-009](#adr-009-snowflake-key-pair-jwt-authentication-for-headless-services) — Snowflake key-pair (JWT) authentication
+- [ADR-010](#adr-010-inventory--true-margin-layer-built-fresh-chunk-11) — Inventory / true-margin layer
+- [ADR-011](#adr-011-inventory-extension--lots-stock-expiring-chunk-11-extension) — Inventory extension: lots, stock, expiring
+- [ADR-012](#adr-012-animated-gradient-shimmer-wordmark-visual-direction) — Animated gradient shimmer wordmark (visual direction)
+
+ADR-008 (RAG chat) belongs to chunk-10, which is not yet committed to `main` — its
+full section lands with that commit; the entry is listed here for continuity. All
+other ADRs are present and numbered sequentially. Numbers are independent of
+platform-core's ADR numbers.
+
 ## ADR-001: Consume platform-core as a local editable install (no version pin yet)
 
 **Date:** 2026-06-11
@@ -525,6 +545,32 @@ and surface it end to end.
 - (–) The RAG corpus extension and an LLM `temperature`-deprecation fix live in
   chunk-10 files (`dermiq/rag/`, `platform_core/llm/`) that remain uncommitted in
   this repo, so they are not part of this commit.
+
+## ADR-012: Animated gradient shimmer wordmark (visual direction)
+
+**Date:** 2026-07-26
+**Status:** Accepted
+
+**Context.** The top bar needed a brand identity beyond plain text. Several
+iterations on the tenant selector (a Building2+chevron slate treatment, an
+Instrument Serif italic with a luminous glow, then uppercase glow variations)
+were tried and discarded — each competed with, rather than supported, the
+wordmark. The conclusion: the excitement belongs on the wordmark, and the tenant
+name should recede.
+
+**Decision.** The `DermIQ` wordmark is an animated teal→cyan gradient that shimmers
+via `background-clip: text` (extra-bold Inter, tight tracking), on an 8-second
+ambient loop; dark mode brightens the gradient. The tenant name carries a matching
+but quieter, slower (14s) shimmer so the two rarely sync. Both respect
+`prefers-reduced-motion` (animation frozen mid-band). Implemented as CSS in
+`globals.css` (`.wordmark-shimmer`, `.tenant-shimmer`), no JS.
+
+**Consequences.**
+- (+) A premium, ambient brand mark with zero runtime JS; accessible via reduced-motion.
+- (+) Clear hierarchy — wordmark leads, tenant name supports.
+- (–) `background-clip: text` requires re-declaring `background-size`/`background-clip`
+  in the dark override (the `background` shorthand resets them) — a known footgun.
+- (–) Purely decorative; the earlier tenant-selector affordance work was discarded.
 
 ## How to add an ADR
 
