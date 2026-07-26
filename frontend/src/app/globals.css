@@ -65,3 +65,84 @@
     background-attachment: fixed;
   }
 }
+
+/* Animated gradient wordmark ("DermIQ") — a teal→cyan band travels through the
+   letters via background-clip: text. Dark mode brightens the gradient; reduced
+   motion freezes it mid-band. */
+@keyframes wordmark-shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: -200% 50%;
+  }
+}
+
+.wordmark-shimmer {
+  background: linear-gradient(90deg, #0e7490 0%, #22d3ee 50%, #0e7490 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: wordmark-shimmer 8s ease-in-out infinite;
+}
+
+.dark .wordmark-shimmer {
+  background: linear-gradient(90deg, #22d3ee 0%, #67e8f9 50%, #22d3ee 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Tenant name — same clip technique, quieter gradient, slower (14s) so it rarely
+   syncs with the 8s wordmark shimmer. */
+@keyframes tenant-shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: -200% 50%;
+  }
+}
+
+.tenant-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(71, 85, 105, 1) 0%,
+    rgba(14, 116, 144, 0.9) 50%,
+    rgba(71, 85, 105, 1) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: tenant-shimmer 14s ease-in-out infinite;
+}
+
+.dark .tenant-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 1) 0%,
+    rgba(34, 211, 238, 0.85) 50%,
+    rgba(148, 163, 184, 1) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: tenant-shimmer 14s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark-shimmer,
+  .tenant-shimmer {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}

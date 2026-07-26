@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown } from "lucide-react";
 
 import { api } from "@/lib/api";
 import { ThemeToggle } from "./ThemeToggle";
@@ -11,12 +10,14 @@ export function TopBar() {
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-6">
+      {/* Tenant name — same gradient-clip shimmer as the wordmark but quieter and
+          slower (14s vs 8s), so the two effects rarely align. The gradient sets
+          the text color, so no slate text classes here. */}
       <button
         type="button"
-        className="flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium hover:bg-muted"
+        className="tenant-shimmer px-3 py-1 text-[13px] font-medium uppercase tracking-[0.1em]"
       >
         {data?.tenant_name ?? "Loading…"}
-        <ChevronDown className="h-4 w-4 text-muted-foreground" />
       </button>
       <ThemeToggle />
     </header>

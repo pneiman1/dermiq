@@ -29,8 +29,11 @@ export function Sidebar() {
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card">
       <div className="flex h-14 items-center px-5">
-        <Link href="/executive" className="text-lg font-semibold tracking-tight">
-          <span className="text-primary">Derm</span>IQ
+        <Link
+          href="/executive"
+          className="wordmark-shimmer text-[20px] font-extrabold tracking-[-0.03em]"
+        >
+          DermIQ
         </Link>
       </div>
       <nav className="flex flex-col gap-1 p-3">
