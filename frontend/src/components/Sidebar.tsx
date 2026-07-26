@@ -9,19 +9,22 @@ import {
   GitBranch,
   PhoneCall,
   Package,
+  MessageSquare,
   Sparkles,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const NAV = [
+const NAV: { href: string; label: string; icon: typeof LayoutDashboard; iconClass?: string }[] = [
   { href: "/executive", label: "Executive", icon: LayoutDashboard },
   { href: "/providers", label: "Providers", icon: Users },
   { href: "/marketing", label: "Marketing", icon: Megaphone },
   { href: "/flow", label: "Flow", icon: GitBranch },
   { href: "/recall", label: "Recall", icon: PhoneCall },
   { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/ai-studio", label: "AI Studio", icon: Sparkles },
+  { href: "/ai-studio", label: "AI Studio", icon: MessageSquare },
+  // AI-powered: teal-tinted Sparkles to signal the LLM-composed canvas.
+  { href: "/canvas", label: "Canvas", icon: Sparkles, iconClass: "text-primary" },
 ];
 
 export function Sidebar() {
@@ -37,7 +40,7 @@ export function Sidebar() {
         </Link>
       </div>
       <nav className="flex flex-col gap-1 p-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, label, icon: Icon, iconClass }) => {
           const active = pathname === href;
           return (
             <Link
@@ -50,7 +53,7 @@ export function Sidebar() {
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className={cn("h-4 w-4", !active && iconClass)} />
               {label}
             </Link>
           );

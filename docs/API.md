@@ -355,6 +355,31 @@ curl -s -H "$H" "localhost:8000/api/v1/inventory/expiring?days=60"
 
 ---
 
+## Canvas (chunk-12)
+
+Natural-language → LLM-composed chart spec → parameterized query. Tenant-gated.
+
+### `GET /schema`
+Curated metadata about the marts Canvas can query (per-mart columns with kind/type/description).
+
+### `POST /canvas/generate`
+Body `{prompt, existing_charts?}`. Returns `{chart_spec, resolved_data, reasoning, warnings, usage}`. 422 if the model can't produce a valid spec (after one retry); 503 if the LLM is unavailable.
+
+### `POST /canvas/query`
+Body `{chart_spec}`. Re-resolves a spec to data: `{data}`. 422 on invalid mart/column.
+
+### `POST /canvas` · `GET /canvas` · `GET /canvas/{id}` · `DELETE /canvas/{id}`
+Save (`{title, charts, layout}` → `{canvas_id}`), list, load, and delete saved canvases (persisted to `CANVAS_LAYOUTS`).
+
+```bash
+H='X-Tenant-ID: del_mar'
+curl -s -H "$H" localhost:8000/api/v1/schema
+curl -s -H "$H" -H "Content-Type: application/json" -X POST localhost:8000/api/v1/canvas/generate \
+  -d '{"prompt":"revenue by provider (bar chart)"}'
+```
+
+---
+
 ## Errors
 
 | Status | When |

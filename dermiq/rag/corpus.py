@@ -616,6 +616,26 @@ def _inventory_docs(conn: SnowflakeConnection, t: str) -> list[dict]:
     return [inventory_summary, expiring_summary]
 
 
+CANVAS_CAPABILITIES_DOC = {
+    "doc_id": "def_canvas_capabilities",
+    "title": "Canvas: build custom charts from a request",
+    "source": "canvas_capabilities.md",
+    "text": (
+        "The Canvas tab lets you build custom visualizations by typing a plain-English "
+        "request — an LLM composes a chart from a fixed grammar over the practice's "
+        "marts. To build a custom chart, open the Canvas tab and type what you want, "
+        "e.g. 'revenue by provider', 'LTV vs CAC by channel', or 'top 10 recall "
+        "patients'. Canvas supports six chart types: KPI (a single headline number, "
+        "optionally vs the prior period), bar, line (over time), scatter (two measures "
+        "across entities), pie (composition), and table. It can chart revenue, "
+        "providers, marketing channels, recall, patient segments, inventory (stock, "
+        "true margin, waste, expiring lots), and more. Charts are draggable and "
+        "resizable, and you can save a canvas to reload later. If you want a specific "
+        "visualization, point the user to the Canvas tab."
+    ),
+}
+
+
 def build_documents(conn: SnowflakeConnection, tenant_id: str | None = None) -> list[dict]:
     """Assemble the full corpus (static definitions + live snapshots)."""
     tenant = tenant_id or get_settings().default_tenant_id
@@ -627,5 +647,6 @@ def build_documents(conn: SnowflakeConnection, tenant_id: str | None = None) -> 
     docs += _provider_docs(conn, tenant)
     docs += _segment_docs(conn, tenant)
     docs += _inventory_docs(conn, tenant)
+    docs.append(CANVAS_CAPABILITIES_DOC)
     log.info("build_documents", tenant=tenant, count=len(docs))
     return docs

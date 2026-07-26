@@ -4,6 +4,11 @@ import type {
   AcquisitionByMonthRow,
   ChannelAttributionRow,
   ChatResponse,
+  CanvasGenerateResponse,
+  CanvasRow,
+  CanvasSchemaMart,
+  CanvasSummary,
+  ChartSpec,
   DispositionDailyRow,
   ExpiringItem,
   FlowByHourRow,
@@ -132,4 +137,18 @@ export const api = {
   getInventoryWaste: (limit?: number) => get<WasteBySkuRow[]>("/inventory/waste", { limit }),
   getInventoryTrueMargin: () => get<TrueMarginRow[]>("/inventory/true-margin"),
   getInventoryExpiring: (days?: number) => get<ExpiringItem[]>("/inventory/expiring", { days }),
+
+  // Canvas (chunk-12).
+  getCanvasSchema: () => get<{ marts: CanvasSchemaMart[] }>("/schema"),
+  generateChart: (prompt: string, existingCharts?: ChartSpec[]) =>
+    post<CanvasGenerateResponse>("/canvas/generate", { prompt, existing_charts: existingCharts }),
+  queryChart: (spec: ChartSpec) =>
+    post<{ data: CanvasRow[] }>("/canvas/query", { chart_spec: spec }),
+  saveCanvas: (title: string, charts: ChartSpec[], layout: unknown[]) =>
+    post<{ canvas_id: string; title: string }>("/canvas", { title, charts, layout }),
+  listCanvases: () => get<CanvasSummary[]>("/canvas"),
+  loadCanvas: (id: string) =>
+    get<{ canvas_id: string; title: string; charts: ChartSpec[]; layout: unknown[] }>(`/canvas/${id}`),
+  deleteCanvas: (id: string) =>
+    fetch(`${BASE}/canvas/${id}`, { method: "DELETE", headers: { "X-Tenant-ID": TENANT } }).then(() => undefined),
 };

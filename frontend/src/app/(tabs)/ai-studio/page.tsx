@@ -21,6 +21,7 @@ const SAMPLE_QUESTIONS = [
   "Who should we prioritize for recall this week?",
   "Which marketing channel should I cut first?",
   "Which service categories are growing?",
+  "How do I build a custom chart?",
 ];
 
 function TypewriterAnswer({ text }: { text: string }) {

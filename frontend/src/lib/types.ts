@@ -261,3 +261,113 @@ export interface ExpiringItem {
   estimated_value_at_risk: string;
   urgency_level: "critical" | "warning" | "watch" | "future";
 }
+
+// ----- canvas (chunk-12) -----
+export type CanvasRow = Record<string, string | number | boolean | null>;
+
+export interface CanvasFilter {
+  column: string;
+  op: "=" | "!=" | ">" | "<" | ">=" | "<=" | "in";
+  value: string | number | boolean | Array<string | number>;
+}
+
+export interface KpiSpec {
+  type: "kpi";
+  mart: string;
+  measure: string;
+  title: string;
+  filter?: CanvasFilter | null;
+  comparison_period?: "prior_period" | null;
+}
+export interface BarSpec {
+  type: "bar";
+  mart: string;
+  x: string;
+  y: string;
+  title: string;
+  color?: string | null;
+  sort_by?: string | null;
+  sort_direction?: "asc" | "desc";
+  limit?: number | null;
+  orientation?: "vertical" | "horizontal";
+  filter?: CanvasFilter | null;
+}
+export interface LineSpec {
+  type: "line";
+  mart: string;
+  x: string;
+  y: string | string[];
+  title: string;
+  color?: string | null;
+  filter?: CanvasFilter | null;
+}
+export interface ScatterSpec {
+  type: "scatter";
+  mart: string;
+  x: string;
+  y: string;
+  point_label: string;
+  title: string;
+  color?: string | null;
+  size?: string | null;
+  limit?: number | null;
+  filter?: CanvasFilter | null;
+}
+export interface PieSpec {
+  type: "pie";
+  mart: string;
+  category: string;
+  value: string;
+  title: string;
+  limit?: number | null;
+  filter?: CanvasFilter | null;
+}
+export interface TableSpec {
+  type: "table";
+  mart: string;
+  columns: string[];
+  title: string;
+  sort_by?: string | null;
+  sort_direction?: "asc" | "desc";
+  limit?: number | null;
+  filter?: CanvasFilter | null;
+}
+export type ChartSpec = KpiSpec | BarSpec | LineSpec | ScatterSpec | PieSpec | TableSpec;
+
+export interface CanvasGenerateResponse {
+  chart_spec: ChartSpec;
+  resolved_data: CanvasRow[];
+  reasoning: string;
+  warnings: string[];
+  usage: { input_tokens: number; output_tokens: number; latency_ms: number };
+}
+
+export interface CanvasSchemaColumn {
+  name: string;
+  type: string;
+  kind: "dimension" | "measure";
+  description: string;
+  sample_values: string[];
+}
+export interface CanvasSchemaMart {
+  name: string;
+  description: string;
+  grain: string;
+  columns: CanvasSchemaColumn[];
+}
+
+export interface CanvasSummary {
+  canvas_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// A chart instance placed on the canvas grid.
+export interface CanvasChart {
+  i: string; // grid item id
+  spec: ChartSpec;
+  data: CanvasRow[];
+  reasoning: string;
+  warnings: string[];
+}
