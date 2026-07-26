@@ -184,6 +184,8 @@ Source scale feeding all of this: 7 providers, 38 services, 3,500 patients,
 driven demo data. I'm honest in interviews that the *interesting* engineering is
 the shape of the pipeline, not the row counts.
 
+**Interview answer.** The warehouse holds 9 staging views, 6 intermediate tables, and 9 marts, fed by ~3,500 patients and ~9,261 transactions over 18 months. It's deliberately small synthetic data — the engineering is in the shape of the pipeline, not the row counts, and I'm upfront about that.
+
 ## 1.7 Data types we use, and why explicit types matter (ADR-005)
 
 - `NUMBER(18,4)` — the **monetary standard** across every derived layer. Revenue,
@@ -342,6 +344,8 @@ spinning up isolated dev environments off a prod database."
 - **Case handling.** Unquoted identifiers uppercase; the connector returns
   uppercase column names, so the API lowercases them when mapping rows to models.
 
+**Interview answer.** The big one was MFA enforcement breaking headless password auth, which drove the key-pair migration. Beyond that: JSON stored as VARCHAR for embeddings and remaining lots (a portability choice, not a limitation), VARIANT columns needing PARSE_JSON on insert, and the connector returning uppercase columns so the API lowercases them when mapping to models.
+
 ---
 
 # SECTION 2 — DBT
@@ -416,6 +420,8 @@ This layering is a rule, not a suggestion: it means a source-column rename only
 has to be absorbed once, in staging, and everything downstream refers to our
 clean names.
 
+**Interview answer.** Sources declare the RAW tables and carry freshness plus contract tests; staging reads sources one-to-one; intermediate reads staging; marts read intermediate and staging. The layering is a rule, so a source rename is absorbed once in staging and everything downstream uses clean names.
+
 ## 2.4 Every model, one line each
 
 Staging (views):
@@ -448,6 +454,8 @@ Marts (tables):
 - `mart_inventory_status` — per-SKU on-hand vs par, days of supply, status.
 - `mart_true_margin_by_service` — revenue vs real consumables cost vs catalog margin.
 - `mart_expiring_soon` — on-hand lots near expiry with value at risk.
+
+**Interview answer.** Nine staging views mirror the source tables; six intermediate tables hold reusable logic — visit economics, patient LTV, provider-daily, inventory movements; nine marts each serve one dashboard tab. Every mart's grain is one row per the thing it describes — a day, a provider, a channel, a SKU.
 
 ## 2.5 Materializations: view / table / incremental / ephemeral
 
@@ -507,6 +515,8 @@ consumables_ttm as (
 The key insight: `ref()` isn't just a name-substitution convenience — it's how the
 dependency graph is *declared*. I never write a schema name by hand in a model;
 `ref` and the `generate_schema_name` macro resolve it.
+
+**Interview answer.** `ref` and `source` aren't just name substitution — they're how dependencies are declared. I never hand-write a schema name in a model: `ref` resolves the fully-qualified name and registers the edge, `config` sets materialization, and the schema macro fills in `LAYER_TENANT`.
 
 ## 2.7 How ref() builds the DAG, and execution order
 
@@ -614,6 +624,8 @@ data that isn't in the EMR source — it belongs with the code, is versioned, an
 `mart_channel_attribution` joins to it for CAC/LTV:CAC. Seeds are for exactly this:
 small, hand-maintained lookup/reference data, not for loading real fact volume.
 
+**Interview answer.** `marketing_spend` is a CSV seed with explicit column types, versioned in git because ad spend is small, static reference data that isn't in the EMR source. Seeds are for exactly that — hand-maintained lookups — not for loading real fact volume.
+
 ## 2.12 Snapshots — why we don't (yet)
 
 dbt **snapshots** implement slowly-changing-dimension (Type 2) history: they watch
@@ -623,6 +635,8 @@ full-refreshed and we don't need point-in-time history of, say, a patient's tier
 over time. I'd add a snapshot the moment a stakeholder asked "what was this
 provider's scorecard as of last quarter" and I needed to reconstruct it — that's
 the SCD-2 use case.
+
+**Interview answer.** Snapshots are dbt's SCD-2 history capture. I don't use them because the source is full-refreshed and I don't need point-in-time history yet — I'd add one the moment someone asked 'what was this scorecard as of last quarter.'
 
 ## 2.13 dbt Core vs Cloud; the adapter; profiles.yml
 
@@ -657,6 +671,8 @@ subtlety I had to handle: the connector doesn't expand `~`, so I replace it with
 the platform-core keypair migration, so `dbt build` would have failed under MFA
 until I migrated the profile too.
 
+**Interview answer.** I run dbt Core because Airflow already owns scheduling, so I don't need dbt Cloud's hosted scheduler; Core keeps the stack self-contained and free. The dbt-snowflake adapter translates to Snowflake SQL and handles key-pair auth, which `profiles.yml` is configured for — the practical difference from password auth being `private_key_path`/`passphrase` instead of a `password`.
+
 ## 2.14 Documentation generation
 
 `dbt docs generate` compiles the project + reads the YAML descriptions and column
@@ -664,6 +680,8 @@ docs, producing `catalog.json` + `manifest.json`; `dbt docs serve` serves a
 browsable site with a searchable model list, column-level descriptions, test
 coverage, and an **interactive lineage graph** (the DAG). It's how I'd onboard
 someone: the lineage view shows source → staging → int → mart at a glance.
+
+**Interview answer.** `dbt docs generate` + `serve` produces a browsable site with column-level descriptions, test coverage, and an interactive lineage graph straight from the manifest — it's how I'd onboard someone to the model DAG.
 
 ---
 
@@ -737,6 +755,8 @@ downstream; the marts that already built are done and don't rebuild on retry. An
 because every task is idempotent (full-refresh / `CREATE OR REPLACE`), a retry is
 safe — it just recomputes from source.
 
+**Interview answer.** `del_mar_pipeline` runs 06:00 daily: a reschedule-mode sensor waits for the source, `extract` full-refreshes RAW and xcom-pushes row counts, a Cosmos task group runs dbt stg→int→mart, and `notify` summarizes. Each task retries twice; a failure stops only its downstream, and idempotent full-refresh makes retries safe.
+
 ## 3.3 The Astronomer distribution and the 4-container architecture
 
 **Astro CLI** (`astro dev start`) is Astronomer's local dev wrapper around
@@ -788,6 +808,8 @@ a multi-tenant prod deploy I'd move Snowflake/Postgres creds into Airflow
 Connections (encrypted in the metadata DB, referenced by conn_id) so secrets
 aren't in a mounted file and can be rotated per environment.
 
+**Interview answer.** In this project config comes from env/`.env` via platform-core Settings, not Airflow Connections — one config surface drives ingestion, dbt, and the DAGs for a single-tenant demo. In prod I'd move the Snowflake/Postgres creds into Airflow Connections so secrets are encrypted in the metadata DB and rotatable per environment.
+
 ## 3.5 Sensors, retries, idempotency, backfills
 
 - **Sensor** — `wait_for_postgres` polls until the source DB is reachable. In
@@ -808,6 +830,8 @@ aren't in a mounted file and can be rotated per environment.
   this automatically for missed schedules; a backfill is an explicit operator
   action. For us backfilling is mostly moot — full-refresh means "yesterday's run"
   and "today's run" produce the same marts from the current source.
+
+**Interview answer.** Sensors poll in reschedule mode so waiting doesn't hold a worker slot; tasks retry twice with a 2-minute backoff; every task is idempotent (full-refresh / CREATE OR REPLACE / seeded RNG), which is why retries and re-runs are safe; and with `catchup=False`, backfills are an explicit operator action, not automatic.
 
 ## 3.6 Astronomer Cosmos — what it actually does
 
@@ -877,6 +901,8 @@ Cloud."
   Celery pulls tasks off a broker to a worker fleet, or Kubernetes launches a pod
   per task for full isolation and elastic scale.
 
+**Interview answer.** Task groups organize the UI; XComs pass small metadata through the metadata DB (I use one — row counts); the scheduler loop evaluates schedules and queues due tasks whose upstreams are met; the executor runs them — LocalExecutor here, Celery or Kubernetes in prod.
+
 ## 3.8 The other two DAGs
 
 - **`weekly_clustering`** (ADR-007) — `schedule="0 3 * * MON"` (Monday 3am, ahead
@@ -901,6 +927,8 @@ task dependencies across DAGs); their **ordering by clock** is the coordination
 mechanism, with each starting with a `wait_for_*` sensor so a late upstream just
 delays, rather than breaks, the dependent job.
 
+**Interview answer.** Two more DAGs: `weekly_clustering` (Mon 3am) refits k-means and rebuilds the segment marts; `rag_corpus_refresh` (7am) rebuilds and re-embeds the RAG corpus. They're decoupled and coordinated by clock — each opens with a `wait_for` sensor, so a late upstream delays rather than breaks the dependent job.
+
 ## 3.9 What could go wrong, and how I'd debug it
 
 - **`extract` fails with token expired** → Snowflake JWT/session issue; check the
@@ -913,6 +941,8 @@ delays, rather than breaks, the dependent job.
   correctly does nothing rather than ingesting a stale/empty source.
 - **Scheduler not triggering** → check it's running, the DAG isn't paused, and the
   file parses (a parse error hides the DAG from the UI).
+
+**Interview answer.** Most failures are a token expiry on `extract` (a retry usually rides it out; otherwise check the `.env` key-pair vars) or a single dbt model erroring (open that Cosmos task's log for the compiled SQL and Snowflake error, fix it, and `clear` just that subgraph). A sensor timeout means the source never came up, and the pipeline correctly does nothing rather than ingest stale data.
 
 ---
 
