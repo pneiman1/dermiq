@@ -26,11 +26,15 @@ import { RevenueLineChart, type RevenuePoint } from "@/components/charts/Revenue
 const DELTA_LABEL = "vs. prior 90 days";
 
 export default function ExecutivePage() {
-  // Generous fetch window; comparison windows are sliced from maxDate below.
+  // Generous fetch window. Comparison windows are sliced from the latest *data*
+  // date (maxDate) below, which can lag "today" by weeks while the seed trails
+  // real time. 400 days guarantees the preceding-90d window (maxDate-180) is fully
+  // covered even with ~7 months of data lag — 220 days truncated it, which
+  // undercounted prior-window revenue and skewed every delta upward.
   const fetchWindow = useMemo(() => {
     const today = new Date();
     const f = (x: Date) => format(x, "yyyy-MM-dd");
-    return { today: f(today), wideStart: f(subDays(today, 220)) };
+    return { today: f(today), wideStart: f(subDays(today, 400)) };
   }, []);
 
   const revenue = useQuery({
@@ -216,7 +220,7 @@ export default function ExecutivePage() {
                 </Card>
               ) : (
                 <>
-                  {worstProvider && worstProvider.pct < -10 ? (
+                  {worstProvider && worstProvider.pct < -5 ? (
                     <StoryCallout tone="watch" title="Provider to watch">
                       <span className="font-medium text-foreground">{worstProvider.name}</span> is down{" "}
                       {Math.abs(worstProvider.pct).toFixed(1)}% in revenue vs. the prior 90 days — the
