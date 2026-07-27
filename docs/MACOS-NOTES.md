@@ -55,3 +55,34 @@ The same tool is often named differently across package managers:
 
 When a `brew install <x>` "package not found" error appears, check this table —
 the apt name and the brew name rarely match exactly.
+
+## sentence-transformers / PyTorch first run (RAG, chunk-10)
+
+`scripts/build_rag_corpus.py` embeds locally with `sentence-transformers`, which
+pulls in **PyTorch**. On Apple Silicon this is fine — torch ships native arm64
+wheels and the model runs on CPU (no MPS/CUDA needed for a ~30-doc corpus). Two
+things to expect on the very first run:
+
+- A one-time **model + weights download** (`all-MiniLM-L6-v2`, plus the torch
+  wheels at install time) — needs network and a minute or two.
+- The first embed call is slow (model load); subsequent runs are fast.
+
+If you're offline or torch failed to install natively, the corpus build is the only
+step that breaks — the rest of the pipeline and the dashboard are unaffected.
+
+## react-grid-layout version pin (Canvas, chunk-12)
+
+The Canvas tab uses `react-grid-layout`. A plain `npm install react-grid-layout`
+now pulls **v2.x, which removed the `WidthProvider` HOC** the Canvas page uses
+(v2 moved to hooks), while `@types/react-grid-layout` is still v1 — so you get a
+runtime `WidthProvider is not a function`. The repo **pins `react-grid-layout@1.5.0`**
+in `package.json` for this reason; a normal `npm install` respects the pin. Only if
+you manually upgrade it will Canvas break. Not Mac-specific, but it bites on a fresh
+`npm install` and the error is opaque.
+
+## Anthropic SDK on Apple Silicon
+
+No gotcha — the `anthropic` Python SDK is pure Python (HTTP client), so it runs
+natively on arm64 with nothing to compile. If `/chat` or Canvas generation returns
+a 401/credit error, it's the account (missing `ANTHROPIC_API_KEY` or no prepaid
+credit), not the platform.
