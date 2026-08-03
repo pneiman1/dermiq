@@ -1,0 +1,84 @@
+# DermIQ API Dockerfile (chunk-13)
+#
+# Multi-stage build for the FastAPI backend. Designed for Fly.io deployment.
+#
+# Build: docker build -f Dockerfile.api -t dermiq-api .
+# Run:   docker run -p 8000:8000 --env-file .env dermiq-api
+#
+# For Fly.io, secrets are set via `fly secrets set KEY=value`. The Snowflake
+# private key can be passed as SNOWFLAKE_PRIVATE_KEY_CONTENT (base64-encoded)
+# and written to a file by the entrypoint.
+
+# -----------------------------------------------------------------------------
+# Stage 1: Build dependencies
+# -----------------------------------------------------------------------------
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+# Install build dependencies for cryptography + snowflake-connector
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libffi-dev \
+    libssl-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy platform-core first (changes less frequently)
+COPY platform-core /build/platform-core/
+RUN pip install --no-cache-dir /build/platform-core
+
+# Copy dermiq and install with api + rag extras
+COPY dermiq /build/dermiq/
+RUN pip install --no-cache-dir "/build/dermiq[api,rag]"
+
+# -----------------------------------------------------------------------------
+# Stage 2: Runtime image
+# -----------------------------------------------------------------------------
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libffi8 \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy the dermiq package (for any data files / scripts)
+COPY dermiq /app/dermiq/
+COPY platform-core /app/platform-core/
+
+# Create directory for secrets
+RUN mkdir -p /app/secrets
+
+# Copy entrypoint script
+COPY <<'EOF' /app/entrypoint.sh
+#!/bin/bash
+set -e
+
+# If SNOWFLAKE_PRIVATE_KEY_CONTENT is set (base64-encoded), write it to a file
+if [ -n "$SNOWFLAKE_PRIVATE_KEY_CONTENT" ]; then
+    echo "$SNOWFLAKE_PRIVATE_KEY_CONTENT" | base64 -d > /app/secrets/snowflake_rsa_key.p8
+    chmod 600 /app/secrets/snowflake_rsa_key.p8
+    export SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/snowflake_rsa_key.p8
+    echo "Snowflake private key written to $SNOWFLAKE_PRIVATE_KEY_PATH"
+fi
+
+exec "$@"
+EOF
+RUN chmod +x /app/entrypoint.sh
+
+# Non-root user for security
+RUN useradd --create-home --shell /bin/bash appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["uvicorn", "dermiq.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

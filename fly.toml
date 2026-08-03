@@ -1,0 +1,55 @@
+# Fly.io configuration for DermIQ API (chunk-13)
+#
+# Deploy with: fly deploy --dockerfile Dockerfile.api
+# Secrets:     fly secrets set ANTHROPIC_API_KEY=... SNOWFLAKE_PRIVATE_KEY_CONTENT=...
+#
+# The SNOWFLAKE_PRIVATE_KEY_CONTENT should be base64-encoded:
+#   fly secrets set SNOWFLAKE_PRIVATE_KEY_CONTENT=$(base64 < ~/.ssh/snowflake_rsa_key.p8)
+
+app = "dermiq-api"
+primary_region = "sea"  # Seattle (Pacific)
+
+[build]
+  dockerfile = "Dockerfile.api"
+
+[env]
+  ENVIRONMENT = "prod"
+  LOG_LEVEL = "INFO"
+  # CORS: set via fly secrets for flexibility
+  # CORS_ORIGINS = "https://dermiq.vercel.app"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 50
+    soft_limit = 40
+
+  # Health check uses the fast /health endpoint (no Snowflake)
+  [[http_service.checks]]
+    path = "/api/v1/health"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "30s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+# Secrets to set (via `fly secrets set`):
+# - ANTHROPIC_API_KEY
+# - SNOWFLAKE_ACCOUNT
+# - SNOWFLAKE_USER
+# - SNOWFLAKE_PRIVATE_KEY_CONTENT (base64-encoded .p8 file)
+# - SNOWFLAKE_PRIVATE_KEY_PASSPHRASE
+# - SNOWFLAKE_ROLE
+# - SNOWFLAKE_WAREHOUSE
+# - SNOWFLAKE_DATABASE
+# - CORS_ORIGINS (e.g., "https://dermiq.vercel.app,http://localhost:3000")

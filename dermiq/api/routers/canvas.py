@@ -6,18 +6,24 @@ import json
 import uuid
 
 import anthropic
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, TypeAdapter
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from snowflake.connector.cursor import SnowflakeCursor
 
 from dermiq.api.deps import current_tenant, db_cursor
 from dermiq.api.fqn import fq
 from dermiq.canvas import generation
 from dermiq.canvas import schema as canvas_schema
+from dermiq.canvas.generation import BudgetExceededError
 from dermiq.canvas.query import SpecError, resolve_and_run
 from dermiq.canvas.schemas import ChartSpec
 
 router = APIRouter(tags=["canvas"])
+
+# Rate limiter: inherits key_func from main app, used for LLM endpoints
+limiter = Limiter(key_func=get_remote_address)
 
 _spec_adapter: TypeAdapter = TypeAdapter(ChartSpec)
 
@@ -58,7 +64,9 @@ def canvas_query(
 
 
 @router.post("/canvas/generate")
+@limiter.limit("10/hour")
 def canvas_generate(
+    request: Request,
     body: GenerateRequest,
     tenant: str = Depends(current_tenant),
     cur: SnowflakeCursor = Depends(db_cursor),
@@ -70,8 +78,18 @@ def canvas_generate(
             status_code=422,
             detail=f"Couldn't build a chart for that request. {exc}",
         )
-    except anthropic.APIError as exc:  # upstream LLM 5xx / transport
-        raise HTTPException(status_code=503, detail="The visualization service is temporarily unavailable. Please retry.") from exc
+    except BudgetExceededError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=str(exc),
+            headers={"Retry-After": "86400"},  # 24 hours
+        )
+    except anthropic.APIError as exc:  # upstream LLM 5xx / transport / timeout
+        raise HTTPException(
+            status_code=503,
+            detail="The visualization service is temporarily unavailable. Please retry.",
+            headers={"Retry-After": "60"},
+        ) from exc
 
 
 @router.post("/canvas")

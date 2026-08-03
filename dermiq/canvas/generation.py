@@ -15,16 +15,21 @@ import time
 from typing import Any
 
 import anthropic
+from httpx import TimeoutException
 from snowflake.connector.cursor import SnowflakeCursor
 
 from platform_core.config import get_settings
 from platform_core.utils.logging import get_logger
 
+from dermiq.api.budget import get_budget_tracker
 from dermiq.canvas import schema as canvas_schema
 from dermiq.canvas.query import SpecError, resolve_and_run
 from dermiq.canvas.schemas import (
     BarSpec, KpiSpec, LineSpec, PieSpec, ScatterSpec, TableSpec,
 )
+
+# Timeout for Anthropic API calls (seconds)
+ANTHROPIC_TIMEOUT = 30.0
 
 log = get_logger(__name__)
 
@@ -85,6 +90,7 @@ def _call(client, model, messages) -> Any:
     return client.messages.create(
         model=model, max_tokens=1024, system=_system_prompt(),
         tools=_tools(), tool_choice={"type": "any"}, messages=messages,
+        timeout=ANTHROPIC_TIMEOUT,
     )
 
 
@@ -106,10 +112,22 @@ def _build_spec(name: str, payload: dict) -> tuple[Any, str, list[str]]:
     return spec, reasoning, warnings
 
 
+class BudgetExceededError(Exception):
+    """Raised when the monthly Anthropic budget has been exceeded."""
+
+
 def generate(cur: SnowflakeCursor, prompt: str, existing_charts: list[dict] | None = None) -> dict:
     """Compose + resolve a chart for `prompt`. Returns
     {chart_spec, resolved_data, reasoning, warnings, usage}. Raises SpecError if
-    the model can't produce a valid spec after one retry."""
+    the model can't produce a valid spec after one retry, or BudgetExceededError
+    if the monthly budget is exhausted."""
+    # Check budget before making any Anthropic calls
+    tracker = get_budget_tracker()
+    ok, msg = tracker.check_budget()
+    if not ok:
+        log.warning("canvas_generate_budget_exceeded", message=msg)
+        raise BudgetExceededError(msg)
+
     settings = get_settings()
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     model = settings.anthropic_model_sonnet
@@ -125,7 +143,12 @@ def generate(cur: SnowflakeCursor, prompt: str, existing_charts: list[dict] | No
     last_err = ""
 
     for attempt in (1, 2):
-        resp = _call(client, model, messages)
+        try:
+            resp = _call(client, model, messages)
+        except TimeoutException as exc:
+            log.error("canvas_generate_timeout", attempt=attempt, error=str(exc))
+            raise anthropic.APIError("Request timed out") from exc
+
         total_in += resp.usage.input_tokens
         total_out += resp.usage.output_tokens
         name, payload = _extract(resp)
@@ -133,6 +156,10 @@ def generate(cur: SnowflakeCursor, prompt: str, existing_charts: list[dict] | No
             spec, reasoning, warnings = _build_spec(name, payload)
             data = resolve_and_run(cur, spec, get_settings().default_tenant_id)
             latency_ms = round((time.monotonic() - t0) * 1000, 1)
+
+            # Record usage after successful call
+            tracker.record_usage(total_in, total_out)
+
             log.info("canvas_generate", prompt=prompt[:200], chart_type=name,
                      attempts=attempt, latency_ms=latency_ms,
                      input_tokens=total_in, output_tokens=total_out, rows=len(data))
@@ -153,5 +180,7 @@ def generate(cur: SnowflakeCursor, prompt: str, existing_charts: list[dict] | No
                             "Choose only columns that exist in the schema and try again."),
             }]
 
+    # Record usage even on failure (we still consumed tokens)
+    tracker.record_usage(total_in, total_out)
     log.error("canvas_generate_failed", prompt=prompt[:200], error=last_err)
     raise SpecError(last_err or "Could not compose a valid chart for this request.")
