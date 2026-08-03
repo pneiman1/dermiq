@@ -6,8 +6,9 @@
 # Run:   docker run -p 8000:8000 --env-file .env dermiq-api
 #
 # For Fly.io, secrets are set via `fly secrets set KEY=value`. The Snowflake
-# private key can be passed as SNOWFLAKE_PRIVATE_KEY_CONTENT (base64-encoded)
-# and written to a file by the entrypoint.
+# private key is passed as SNOWFLAKE_PRIVATE_KEY_CONTENT (base64-encoded) and
+# decoded to /secrets/snowflake_rsa_key.p8 by docker-entrypoint.sh, which also
+# exports SNOWFLAKE_PRIVATE_KEY_PATH. The container refuses to start without it.
 
 # -----------------------------------------------------------------------------
 # Stage 1: Build dependencies
@@ -53,32 +54,21 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY dermiq /app/dermiq/
 COPY platform-core /app/platform-core/
 
-# Create directory for secrets
-RUN mkdir -p /app/secrets
-
-# Copy entrypoint script
-COPY <<'EOF' /app/entrypoint.sh
-#!/bin/bash
-set -e
-
-# If SNOWFLAKE_PRIVATE_KEY_CONTENT is set (base64-encoded), write it to a file
-if [ -n "$SNOWFLAKE_PRIVATE_KEY_CONTENT" ]; then
-    echo "$SNOWFLAKE_PRIVATE_KEY_CONTENT" | base64 -d > /app/secrets/snowflake_rsa_key.p8
-    chmod 600 /app/secrets/snowflake_rsa_key.p8
-    export SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/snowflake_rsa_key.p8
-    echo "Snowflake private key written to $SNOWFLAKE_PRIVATE_KEY_PATH"
-fi
-
-exec "$@"
-EOF
-RUN chmod +x /app/entrypoint.sh
+# Copy entrypoint script (decodes the base64 Snowflake key at startup)
+COPY dermiq/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser
+
+# Secrets dir must exist and be writable by appuser: the entrypoint decodes the
+# private key here at runtime, and a non-root process cannot mkdir under /.
+RUN mkdir -p /secrets && chown appuser:appuser /secrets && chmod 700 /secrets
+
 RUN chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["uvicorn", "dermiq.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
