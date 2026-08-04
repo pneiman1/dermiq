@@ -2,59 +2,123 @@
 #
 # Multi-stage build for the FastAPI backend. Designed for Fly.io deployment.
 #
-# Build: docker build -f Dockerfile.api -t dermiq-api .
-# Run:   docker run -p 8000:8000 --env-file .env dermiq-api
+# Build context is the *parent* of this repo, because the image needs both this
+# checkout and the sibling platform-core one:
+#   cd ~/projects
+#   docker build -f dermiq/Dockerfile.api -t dermiq-api .
+#   docker run -p 8000:8000 --env-file dermiq/.env dermiq-api
+# Dockerfile.api.dockerignore keeps that context from sweeping in .venv/ etc.
 #
 # For Fly.io, secrets are set via `fly secrets set KEY=value`. The Snowflake
 # private key is passed as SNOWFLAKE_PRIVATE_KEY_CONTENT (base64-encoded) and
 # decoded to /secrets/snowflake_rsa_key.p8 by docker-entrypoint.sh, which also
 # exports SNOWFLAKE_PRIVATE_KEY_PATH. The container refuses to start without it.
+#
+# Size discipline (ADR-014): this image installs serving dependencies only. It
+# has no torch, no transformers, no scikit-learn/scipy, no dbt, and no
+# pandas/pyarrow. /chat still embeds its query locally — it runs the same
+# all-MiniLM-L6-v2 weights through ONNX Runtime (~90MB) rather than torch
+# (~1.2GB). Keep it that way: the import smoke test at the end of the builder
+# stage fails the build if a request path grows a dependency this image lacks.
 
 # -----------------------------------------------------------------------------
-# Stage 1: Build dependencies
+# Stage 1: Fetch the embedding model
+# -----------------------------------------------------------------------------
+# Its own stage so huggingface-hub and its transitive deps (hf_xet, fsspec, ...)
+# never enter the image's site-packages — only the model files are copied out.
+# Also caches independently of the app dependencies, which change far more often.
+FROM python:3.12-slim AS model-fetch
+
+ENV ONNX_MODEL_DIR=/models/all-MiniLM-L6-v2
+
+# Fetching at container start instead would put a ~90MB round-trip on the first
+# /chat request and make startup depend on huggingface.co being up.
+RUN pip install --no-cache-dir "huggingface-hub>=0.23" \
+ && python -c "\
+import os, shutil; \
+from huggingface_hub import hf_hub_download; \
+d = os.environ['ONNX_MODEL_DIR']; \
+os.makedirs(d, exist_ok=True); \
+[shutil.copy(hf_hub_download('sentence-transformers/all-MiniLM-L6-v2', f), os.path.join(d, os.path.basename(f))) \
+ for f in ['onnx/model.onnx', 'tokenizer.json', 'tokenizer_config.json', 'special_tokens_map.json', 'config.json']]"
+
+# -----------------------------------------------------------------------------
+# Stage 2: Build dependencies
 # -----------------------------------------------------------------------------
 FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
-# Install build dependencies for cryptography + snowflake-connector
+# Build toolchain for cryptography + snowflake-connector wheels that have no
+# prebuilt match. Stays in this stage; the runtime image gets none of it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libffi-dev \
     libssl-dev \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy platform-core first (changes less frequently)
+# platform-core first: it changes less frequently than dermiq, so this layer
+# caches across most rebuilds. [serving] = retrieval + ONNX embedding + LLM,
+# without the pandas/SQLAlchemy/Postgres extras batch jobs use.
 COPY platform-core /build/platform-core/
-RUN pip install --no-cache-dir /build/platform-core
+RUN pip install --no-cache-dir "/build/platform-core[serving]"
 
-# Copy dermiq and install with api + rag extras
+# dermiq's api-runtime extra. The package's base dependencies are empty by
+# design, so this installs exactly the serving set and nothing else.
 COPY dermiq /build/dermiq/
-RUN pip install --no-cache-dir "/build/dermiq[api,rag]"
+RUN pip install --no-cache-dir "/build/dermiq[api-runtime]"
+
+# The model, from the fetch stage — needed here so the smoke test below can
+# actually embed something rather than just checking imports resolve.
+COPY --from=model-fetch /models /models
+ENV ONNX_MODEL_DIR=/models/all-MiniLM-L6-v2
+
+# Guardrail: import every request path and embed a query end-to-end. If someone
+# adds an import that this dependency set does not cover, or the ONNX model dir
+# is incomplete, the build fails here rather than the deploy failing later.
+ENV EMBEDDING_PROVIDER=onnx
+RUN python -c "\
+import dermiq.api.main; \
+from platform_core.rag import Embedder, top_k, read_corpus; \
+v = Embedder().encode_one('smoke test'); \
+assert v.shape == (384,), v.shape; \
+import numpy as np; \
+assert abs(float(np.linalg.norm(v)) - 1.0) < 1e-5; \
+print('import smoke test ok, embedding dim', v.shape[0])" \
+ && python -c "\
+import importlib.util as u; \
+banned = ['torch', 'transformers', 'sentence_transformers', 'sklearn', 'scipy', 'pandas', 'pyarrow', 'dbt']; \
+found = [m for m in banned if u.find_spec(m) is not None]; \
+assert not found, 'heavy dependency leaked into the API image: ' + repr(found); \
+print('no heavy dependencies present')"
+
+# Drop bytecode caches and bundled tests from site-packages — regenerated or
+# unused at runtime, and worth ~40MB.
+RUN find /usr/local/lib/python3.12/site-packages \
+      -type d \( -name '__pycache__' -o -name 'tests' -o -name 'test' \) \
+      -prune -exec rm -rf {} + 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
-# Stage 2: Runtime image
+# Stage 3: Runtime image
 # -----------------------------------------------------------------------------
 FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 
-# Install runtime dependencies only
+# Shared libraries the wheels link against. No compiler here.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi8 \
     libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder
+# Installed packages only. dermiq and platform_core are installed (not editable)
+# into site-packages by the builder, so no source tree is copied — that is what
+# used to drag both repos' .venv directories into the image.
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=model-fetch /models /models
 
-# Copy the dermiq package (for any data files / scripts)
-COPY dermiq /app/dermiq/
-COPY platform-core /app/platform-core/
-
-# Copy entrypoint script (decodes the base64 Snowflake key at startup)
+# Entrypoint script (decodes the base64 Snowflake key at startup)
 COPY dermiq/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
@@ -67,6 +131,14 @@ RUN mkdir -p /secrets && chown appuser:appuser /secrets && chmod 700 /secrets
 
 RUN chown -R appuser:appuser /app
 USER appuser
+
+# Serving config. EMBEDDING_PROVIDER=onnx is what routes /chat to the ONNX
+# backend; without it the app would look for sentence-transformers, which this
+# image deliberately does not ship.
+ENV EMBEDDING_PROVIDER=onnx \
+    ONNX_MODEL_DIR=/models/all-MiniLM-L6-v2 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 

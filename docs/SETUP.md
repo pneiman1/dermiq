@@ -59,9 +59,24 @@ python3.12 -m venv .venv
 source .venv/bin/activate            # macOS & Linux/WSL2
 
 pip install --upgrade pip
-pip install -e ../platform-core      # the shared library, FIRST
-pip install -e ".[dev,transform,api]"  # DermIQ + dbt + API + dev tools
+pip install -e "../platform-core[all]"   # the shared library, FIRST
+pip install -e ".[all]"                  # DermIQ + dbt + API + ML + RAG + dev
 ```
+
+> Both packages ship deliberately minimal base dependencies and put everything
+> heavy behind extras, so that the API container image can install a serving-only
+> subset (see [DECISIONS](DECISIONS.md) ADR-014). A plain `pip install -e .`
+> gives you an importable package with almost nothing in it — for a dev checkout
+> you want `[all]`, or a narrower extra if you know what you're touching:
+>
+> | Extra | For |
+> |---|---|
+> | `batch` | seeding, ingestion, corpus builds (pandas/pyarrow/faker) |
+> | `api` | the FastAPI web layer |
+> | `api-runtime` | exactly what serving a request needs — what the image installs |
+> | `transform` | dbt |
+> | `ml` | patient clustering (scikit-learn) |
+> | `rag` | corpus builds: Anthropic + sentence-transformers |
 
 > macOS: invoke `python3.12` explicitly so the venv isn't built from a shadowing
 > Homebrew/system Python — see [MACOS-NOTES](MACOS-NOTES.md).
@@ -235,7 +250,7 @@ PY
 
 **Terminal 1 — API** (FastAPI on `:8000`):
 ```bash
-make api-install     # first time only: pip install -e ".[api,dev]"
+make api-install     # first time only: pip install -e ".[api,rag,dev]"
 make api-run
 ```
 

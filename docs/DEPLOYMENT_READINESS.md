@@ -359,6 +359,12 @@ EXPOSE 8000
 CMD ["uvicorn", "dermiq.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
+> **Superseded.** This audit's sketch was implemented and then reworked — as
+> written it builds an 11.1GB image, because `[api,rag]` pulls torch + CUDA and
+> the single-stage copy drags both repos' `.venv` directories in. The shipped
+> version is `Dockerfile.api`: multi-stage, `[api-runtime]`, ONNX instead of
+> torch, 449MB. See [DECISIONS](DECISIONS.md) ADR-014.
+
 **fly.toml** — **BLOCKER**
 
 Recommended `fly.toml`:

@@ -1,0 +1,64 @@
+# Build-context exclusions for Dockerfile.api.
+#
+# Dockerfile.api builds from the PARENT of this repo (it needs both dermiq/ and
+# the sibling platform-core/), so the repo's own .dockerignore — which Docker
+# resolves relative to the context root — never applies. BuildKit reads
+# <dockerfile>.dockerignore in preference to the context-root one, which is how
+# this file gets picked up from inside the repo. Patterns below are therefore
+# relative to ~/projects, not to the repo.
+#
+# Without this, `COPY dermiq /build/dermiq/` swept in dermiq/.venv (1.8GB) and
+# platform-core/.venv (430MB) and copied them into the image.
+
+# Virtualenvs — the single biggest offender.
+**/.venv
+**/venv
+**/env
+
+# Python build artifacts
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+**/build
+**/dist
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Secrets — must never enter the build context. Fly injects these as env vars.
+**/.env
+**/.env.local
+**/*.pem
+**/*.key
+**/*.p8
+**/secrets
+**/*secrets.env
+
+# Everything the API image does not serve from.
+frontend
+airflow
+transform
+infra
+docs
+tests
+scripts
+**/node_modules
+**/.next
+
+# dbt + data artifacts
+**/target
+**/dbt_packages
+**/logs
+**/data
+**/seed_output
+**/*.csv
+**/*.parquet
+**/*.duckdb
+
+# VCS / editor / OS noise
+**/.git
+**/.github
+**/.vscode
+**/.idea
+**/*.swp
+**/.DS_Store

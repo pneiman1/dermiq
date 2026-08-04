@@ -20,7 +20,12 @@ out/
 .env.local
 *.pem
 *.key
+*.p8
 secrets/
+# Deploy secrets staged for `fly secrets import` — holds the Anthropic key and
+# the Snowflake key passphrase in plaintext. Was untracked but not ignored.
+dermiq-secrets.env
+*secrets.env
 
 # IDE
 .vscode/

@@ -683,6 +683,92 @@ Snowflake query.
 - (–) LLM-generated suggestion chips (dynamic, debounced) were scoped down to
   curated chips — a `/canvas/suggest` endpoint would be needed for the dynamic version.
 
+## ADR-014: Serving-only dependency set for the API image; ONNX Runtime for query embedding (chunk-13)
+
+**Date:** 2026-08-03
+**Status:** Accepted
+
+**Context.** The API image reached 11.1GB locally / ~5.6GB pushed, and Fly.io
+deploys were failing on the oversized layer. Three separate causes, in order of
+size:
+
+1. **CUDA.** `pip install sentence-transformers` on linux/amd64 pulls the default
+   torch wheel, which drags in `nvidia-*` (2.7GB) and `triton` (691MB) for GPUs
+   no Fly shared-CPU VM has. Torch itself added another 1.1GB.
+2. **Copied virtualenvs.** `Dockerfile.api` builds from the *parent* of the repo
+   so it can reach the sibling platform-core checkout. Docker resolves
+   `.dockerignore` relative to the context root, so the repo's own file never
+   applied, and `COPY dermiq /build/dermiq/` swept in `dermiq/.venv` (1.8GB) and
+   `platform-core/.venv` (430MB) — then the runtime stage copied both into the
+   final image (2.8GB under `/app`).
+3. **Union dependencies.** Both packages declared base dependencies covering
+   every workload — pandas/pyarrow (230MB), scikit-learn/scipy, dbt — so the
+   image installed the batch-job toolchain to serve HTTP requests.
+
+The awkward part is (1): `/chat` genuinely embeds its query server-side. The
+corpus is embedded offline and read back from Snowflake, but the incoming
+question has to be turned into a vector at request time, so "just drop
+sentence-transformers" would have broken retrieval.
+
+**Decision.** Three changes, one per cause:
+
+1. **Embed queries through ONNX Runtime.** `platform_core.rag.embedder` gained an
+   `onnx` backend that runs the *same* all-MiniLM-L6-v2 weights — exported to
+   ONNX, mean-pooled over the attention mask, L2-normalized — reproducing
+   sentence-transformers' pipeline without torch. Selected by
+   `EMBEDDING_PROVIDER=onnx`, which `Dockerfile.api` sets. The model is baked in
+   at build time from its own build stage, so no huggingface-hub or its
+   transitive deps reach site-packages and startup does not depend on
+   huggingface.co. Corpus builds keep using the torch backend, where 1.2GB is
+   free.
+2. **`Dockerfile.api.dockerignore`.** BuildKit reads `<dockerfile>.dockerignore`
+   in preference to the context-root one, which is how a file committed inside
+   the repo can govern a context rooted above it. The runtime stage also stopped
+   copying source trees entirely — both packages are installed non-editable into
+   site-packages, so the `/app` copies were pure duplication.
+3. **Minimal base dependencies, workload extras.** `platform-core` base is now
+   config + logging + a Snowflake connection; `dermiq` base is empty. pandas is
+   imported lazily in the two places that need it (`warehouse.load`, and
+   `rag.store`'s *write* path — `read_corpus`, which serving actually calls, uses
+   a plain cursor), and `platform_core.rag` resolves submodules through PEP 562
+   so importing it costs only what the caller touches.
+
+**Alternatives considered.**
+
+- *CPU-only torch* (`--index-url .../whl/cpu`). Zero code change, and it does
+  eliminate every `nvidia-*` package. Measured: 1.44GB of site-packages, ~1.56GB
+  image. A 7× improvement that still misses the target by 3×, for a
+  ~240MB-versus-1.1GB difference in resident memory on a 512MB VM.
+- *Pre-compute and cache common query embeddings.* Only helps for questions seen
+  before; an unrecognized question would have no vector at all. Chat is
+  open-ended by definition.
+- *Call a hosted embedding API* (Voyage, OpenAI). Smallest image of all, but adds
+  a second API key, a per-query network hop inside the request path, and a
+  vendor whose model updates would silently invalidate the stored corpus.
+- *Keep sentence-transformers and trim everything else.* The other three items
+  total ~400MB against torch's ~4.5GB. Not where the weight is.
+
+**Consequences.**
+
+- (+) 11.1GB → **449MB** (−96%). Build context 2.2GB → 1.06MB. Resident memory
+  ~240MB, comfortably inside the 512MB Fly VM.
+- (+) Verified equivalence, not assumed: ONNX and sentence-transformers agree to
+  cosine 1.000000 (max elementwise delta 1.3e-7, float32 noise) across the query
+  set in `platform-core/tests/rag/test_embedder_parity.py`. Retrieval ranking is
+  unchanged.
+- (+) The builder stage asserts the banned modules are absent and imports every
+  request path, so a dependency regression fails the build rather than the
+  deploy.
+- (–) Two embedding backends to keep in step. The parity test is what makes that
+  safe; it must keep running in CI, and it skips silently where either backend is
+  missing.
+- (–) `pip install -e .` on either repo now yields a near-empty install. Dev
+  checkouts need `[all]` — SETUP.md and the Makefile were updated, but this will
+  surprise anyone working from muscle memory.
+- (–) `EMBEDDING_PROVIDER` must be `onnx` wherever the slim image runs. It is an
+  image-level `ENV` default, but a `.env` or `fly secrets` value overrides it,
+  and the failure mode is a 500 on `/chat` rather than a startup error.
+
 ## How to add an ADR
 
 Follow the same template platform-core uses:

@@ -12,18 +12,29 @@ authors = [{ name = "Phil Neiman" }]
 #     pip install -e ../platform-core
 #     pip install -e .
 # See docs/SETUP.md for the full flow and docs/DECISIONS.md (ADR-001) for why.
-dependencies = [
-    "faker>=24.0",
-    "numpy>=1.26",
-    "pandas>=2.2",
-    "pyarrow>=15.0",
-]
+#
+# Base install carries no third-party dependencies on purpose. dermiq's modules
+# split cleanly by workload — seeding/ingestion want pandas, the API wants none
+# of it — and a base that pulled the union would put ~250MB of pandas/pyarrow
+# into the container image for code no request path executes. Pick an extra:
+# `batch` for data work, `api-runtime` for serving, `all` for a dev checkout.
+# See docs/DECISIONS.md ADR-014.
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "ruff>=0.3",
     "black>=24.2",
+]
+
+# Data generation, ingestion, and the corpus/clustering batch jobs — everything
+# under dermiq/seed, dermiq/ingestion, and dermiq/rag/corpus.py.
+batch = [
+    "faker>=24.0",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyarrow>=15.0",
 ]
 
 # FastAPI backend serving the marts to the frontend. Opt-in — only contributors
@@ -35,6 +46,36 @@ api = [
     "slowapi>=0.1.9",
 ]
 
+# Exactly what the API needs to serve a request, and nothing else — this is what
+# the container image installs (Dockerfile.api). Because base `dependencies` is
+# empty, `pip install .[api-runtime]` resolves to precisely this list. Adding an
+# import to dermiq/api/ or dermiq/canvas/ that is not covered here will fail the
+# image's import smoke test at build time, by design.
+#
+# Deliberately absent: sentence-transformers/torch/transformers (the ONNX
+# backend embeds queries instead — see ADR-014), scikit-learn/scipy (clustering
+# is a batch job), dbt (transform-time only), pandas/pyarrow (no request path
+# builds a DataFrame; the two places that do import it lazily).
+api-runtime = [
+    # Web layer
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "httpx>=0.27",
+    "slowapi>=0.1.9",
+
+    # Config + logging + warehouse access, from platform-core
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "structlog>=24.1",
+    "snowflake-connector-python>=3.7",
+
+    # Retrieval math + ONNX query embedding for /chat
+    "numpy>=1.26",
+
+    # Claude, for /chat and /canvas generation
+    "anthropic>=0.40",
+]
+
 # dbt transformation toolchain. Heavy (dbt-core + the Snowflake adapter pull in
 # many transitive deps), so it is opt-in — only contributors working on the dbt
 # project need it, not those touching app/ingestion code.
@@ -44,16 +85,25 @@ transform = [
 ]
 
 # Machine learning (patient clustering, chunk-9). Opt-in — scikit-learn pulls
-# scipy and friends.
+# scipy and friends. Batch only; the API reads the clustering output from marts.
 ml = [
+    "dermiq[batch]",
     "scikit-learn>=1.4",
 ]
 
-# RAG chat (chunk-10): local embeddings + Anthropic generation. Heavy —
+# RAG corpus builds (chunk-10): local embeddings + Anthropic generation. Heavy —
 # sentence-transformers pulls torch. Mirrors platform-core[llm,sentence-transformers].
+# This is the *build* side; serving only needs `api-runtime`, which embeds
+# queries through ONNX instead. See docs/DECISIONS.md ADR-014.
 rag = [
+    "dermiq[batch]",
     "anthropic>=0.40",
     "sentence-transformers>=2.7",
+]
+
+# Convenience: a full local dev checkout.
+all = [
+    "dermiq[api,batch,transform,ml,rag,dev]",
 ]
 
 [build-system]
