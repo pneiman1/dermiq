@@ -11,9 +11,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DesktopTable,
+  MobileCard,
+  MobileCardList,
+  MobileSortBar,
+} from "@/components/MobileCardList";
 import { fmtInt, fmtPct } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { NoShowByProviderRow } from "@/lib/types";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "no_show_rate", label: "No-show rate" },
+  { key: "cancel_rate", label: "Cancel rate" },
+  { key: "scheduled", label: "Scheduled" },
+  { key: "no_show", label: "No-shows" },
+  { key: "provider_name", label: "Provider" },
+];
 
 type SortKey = "provider_name" | "scheduled" | "no_show" | "no_show_rate" | "cancel_rate";
 
@@ -65,42 +79,83 @@ export function NoShowByProviderTable({ rows }: { rows: NoShowByProviderRow[] })
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {head("Provider", "provider_name", "left")}
-          {head("Scheduled", "scheduled")}
-          {head("No-shows", "no_show")}
-          {head("No-show rate", "no_show_rate", "left")}
-          {head("Cancel rate", "cancel_rate")}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      <MobileSortBar
+        options={SORT_OPTIONS}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onKeyChange={(k) => {
+          setSortKey(k);
+          setSortDir(k === "provider_name" ? "asc" : "desc");
+        }}
+        onDirToggle={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+      />
+      <MobileCardList>
         {sorted.map((r) => {
           const rate = num(r, "no_show_rate");
           const pct = maxRate > 0 ? (rate / maxRate) * 100 : 0;
           return (
-            <TableRow key={r.provider_id}>
-              <TableCell>
-                <div className="font-medium">{r.provider_name}</div>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{fmtInt(r.scheduled)}</TableCell>
-              <TableCell className="text-right tabular-nums">{fmtInt(r.no_show)}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-rose-500" style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className="tabular-nums text-slate-700 dark:text-slate-300">
-                    {fmtPct(r.no_show_rate)}
-                  </span>
+            <MobileCard
+              key={r.provider_id}
+              title={r.provider_name}
+              fields={[
+                { label: "Scheduled", value: fmtInt(r.scheduled) },
+                { label: "No-shows", value: fmtInt(r.no_show) },
+                { label: "Cancel rate", value: fmtPct(r.cancel_rate) },
+              ]}
+            >
+              <div className="mt-2.5 flex items-center gap-2">
+                <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-rose-500" style={{ width: `${pct}%` }} />
                 </div>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{fmtPct(r.cancel_rate)}</TableCell>
-            </TableRow>
+                <span className="shrink-0 text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                  {fmtPct(r.no_show_rate)} no-show
+                </span>
+              </div>
+            </MobileCard>
           );
         })}
-      </TableBody>
-    </Table>
+      </MobileCardList>
+
+      <DesktopTable>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {head("Provider", "provider_name", "left")}
+              {head("Scheduled", "scheduled")}
+              {head("No-shows", "no_show")}
+              {head("No-show rate", "no_show_rate", "left")}
+              {head("Cancel rate", "cancel_rate")}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sorted.map((r) => {
+              const rate = num(r, "no_show_rate");
+              const pct = maxRate > 0 ? (rate / maxRate) * 100 : 0;
+              return (
+                <TableRow key={r.provider_id}>
+                  <TableCell>
+                    <div className="font-medium">{r.provider_name}</div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtInt(r.scheduled)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtInt(r.no_show)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-rose-500" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="tabular-nums text-slate-700 dark:text-slate-300">
+                        {fmtPct(r.no_show_rate)}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtPct(r.cancel_rate)}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </DesktopTable>
+    </>
   );
 }

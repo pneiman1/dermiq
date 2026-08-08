@@ -42,7 +42,7 @@ export function KPICard({
 }: KPICardProps) {
   return (
     <Card className={emphasis ? "border-l-4 border-l-primary" : undefined}>
-      <CardContent className="p-5">
+      <CardContent className="p-4 sm:p-5">
         <p className="text-sm text-muted-foreground">{label}</p>
         {loading ? (
           <Skeleton className="mt-2 h-8 w-28" />

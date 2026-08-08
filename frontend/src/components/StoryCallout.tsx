@@ -15,9 +15,9 @@ export function StoryCallout({ tone, title, children }: StoryCalloutProps) {
     tone === "watch" ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400";
   return (
     <Card>
-      <CardContent className="flex gap-3 p-5">
+      <CardContent className="flex gap-3 p-4 sm:p-5">
         <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", iconColor)} />
-        <div>
+        <div className="min-w-0">
           <p className="text-base font-semibold">{title}</p>
           {children && <div className="mt-1 text-sm text-muted-foreground">{children}</div>}
         </div>

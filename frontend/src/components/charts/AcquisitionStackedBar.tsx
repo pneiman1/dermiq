@@ -29,28 +29,30 @@ export function AcquisitionStackedBar({ rows }: { rows: AcquisitionByMonthRow[] 
     .map(([month_start, counts]) => ({ month_start, ...counts }));
 
   return (
-    <ResponsiveContainer width="100%" height={320}>
-      <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-        <XAxis
-          dataKey="month_start"
-          tick={{ fill: "#94a3b8", fontSize: 12 }}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(d: string) => format(parseISO(d), "MMM ''yy")}
-          minTickGap={12}
-        />
-        <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} tickLine={false} axisLine={false} width={36} />
-        <Tooltip
-          formatter={(value: number, name: string) => [fmtInt(value), channelLabel(name)]}
-          labelFormatter={(d: string) => format(parseISO(d), "MMMM yyyy")}
-          contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
-        />
-        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(value: string) => channelLabel(value)} />
-        {CHANNEL_ORDER.map((ch) => (
-          <Bar key={ch} dataKey={ch} name={ch} stackId="a" fill={CHANNEL_COLORS[ch]} />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="h-[300px] w-full sm:h-[320px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <XAxis
+            dataKey="month_start"
+            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(d: string) => format(parseISO(d), "MMM ''yy")}
+            minTickGap={12}
+          />
+          <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} tickLine={false} axisLine={false} width={36} />
+          <Tooltip
+            formatter={(value: number, name: string) => [fmtInt(value), channelLabel(name)]}
+            labelFormatter={(d: string) => format(parseISO(d), "MMMM yyyy")}
+            contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
+          />
+          <Legend wrapperStyle={{ fontSize: 12 }} formatter={(value: string) => channelLabel(value)} />
+          {CHANNEL_ORDER.map((ch) => (
+            <Bar key={ch} dataKey={ch} name={ch} stackId="a" fill={CHANNEL_COLORS[ch]} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

@@ -22,8 +22,9 @@ import { KPICard } from "@/components/KPICard";
 import { ErrorCard } from "@/components/ErrorCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { WasteByServiceBar } from "@/components/charts/WasteByServiceBar";
+import { DesktopTable, MobileCard, MobileCardList } from "@/components/MobileCardList";
 import { cn } from "@/lib/utils";
-import type { ExpiringItem, InventoryStatusRow } from "@/lib/types";
+import type { ExpiringItem, InventoryStatusRow, TrueMarginRow } from "@/lib/types";
 
 const STATUS_BADGE: Record<InventoryStatusRow["stock_status"], { variant: "danger" | "warning" | "success" | "secondary"; label: string }> = {
   out: { variant: "danger", label: "Out" },
@@ -41,6 +42,12 @@ const URGENCY: Record<string, { variant: "danger" | "warning" | "secondary"; rin
 function fmtDays(v: string | null): string {
   if (v === null) return "—";
   return `${Math.round(Number(v))} days`;
+}
+
+/** Percentage points of margin lost to real consumable cost, or null if unknown. */
+function marginDelta(r: TrueMarginRow): number | null {
+  if (r.catalog_margin_pct === null || r.true_margin_pct === null) return null;
+  return (Number(r.catalog_margin_pct) - Number(r.true_margin_pct)) * 100;
 }
 
 export default function InventoryPage() {
@@ -81,7 +88,7 @@ export default function InventoryPage() {
       ) : (
         <>
           {/* KPI strip */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <KPICard
               label="Total inventory value"
               value={summary.data ? fmtUSD(summary.data.total_inventory_value, { dp: 0 }) : "—"}
@@ -139,38 +146,78 @@ export default function InventoryPage() {
                 {trueMargin.isLoading ? (
                   <div className="space-y-2 p-4">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}</div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Service</TableHead>
-                        <TableHead className="text-right">Revenue TTM</TableHead>
-                        <TableHead className="text-right">Consumables cost</TableHead>
-                        <TableHead className="text-right">True margin</TableHead>
-                        <TableHead className="text-right">Catalog margin</TableHead>
-                        <TableHead className="text-right">Δ (pts)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  <>
+                    <MobileCardList>
                       {(trueMargin.data ?? []).map((r) => {
-                        const delta =
-                          r.catalog_margin_pct !== null && r.true_margin_pct !== null
-                            ? (Number(r.catalog_margin_pct) - Number(r.true_margin_pct)) * 100
-                            : null;
+                        const delta = marginDelta(r);
                         return (
-                          <TableRow key={r.service_code}>
-                            <TableCell className="font-medium">{r.service_name}</TableCell>
-                            <TableCell className="text-right tabular-nums">{fmtUSD(r.revenue_ttm, { dp: 0 })}</TableCell>
-                            <TableCell className="text-right tabular-nums text-muted-foreground">{fmtUSD(r.consumables_cost_ttm, { dp: 0 })}</TableCell>
-                            <TableCell className="text-right tabular-nums font-medium">{fmtPct(r.true_margin_pct)}</TableCell>
-                            <TableCell className="text-right tabular-nums text-muted-foreground">{fmtPct(r.catalog_margin_pct)}</TableCell>
-                            <TableCell className={cn("text-right tabular-nums font-semibold", delta !== null && delta >= 5 ? "text-destructive" : "text-muted-foreground")}>
-                              {delta !== null ? `-${delta.toFixed(1)}` : "—"}
-                            </TableCell>
-                          </TableRow>
+                          <MobileCard
+                            key={r.service_code}
+                            title={r.service_name}
+                            right={
+                              <span
+                                className={cn(
+                                  "text-sm font-semibold tabular-nums",
+                                  delta !== null && delta >= 5
+                                    ? "text-destructive"
+                                    : "text-muted-foreground",
+                                )}
+                              >
+                                {delta !== null ? `-${delta.toFixed(1)} pts` : "—"}
+                              </span>
+                            }
+                            fields={[
+                              { label: "True margin", value: fmtPct(r.true_margin_pct) },
+                              { label: "Catalog", value: fmtPct(r.catalog_margin_pct) },
+                              // Full-width: six-figure currency truncates in a half-row at 375px.
+                              {
+                                label: "Revenue TTM",
+                                value: fmtUSD(r.revenue_ttm, { dp: 0 }),
+                                wide: true,
+                              },
+                              {
+                                label: "Consumables cost",
+                                value: fmtUSD(r.consumables_cost_ttm, { dp: 0 }),
+                                wide: true,
+                              },
+                            ]}
+                          />
                         );
                       })}
-                    </TableBody>
-                  </Table>
+                    </MobileCardList>
+
+                    <DesktopTable>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Service</TableHead>
+                            <TableHead className="text-right">Revenue TTM</TableHead>
+                            <TableHead className="text-right">Consumables cost</TableHead>
+                            <TableHead className="text-right">True margin</TableHead>
+                            <TableHead className="text-right">Catalog margin</TableHead>
+                            <TableHead className="text-right">Δ (pts)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(trueMargin.data ?? []).map((r) => {
+                            const delta = marginDelta(r);
+                            return (
+                              <TableRow key={r.service_code}>
+                                <TableCell className="font-medium">{r.service_name}</TableCell>
+                                <TableCell className="text-right tabular-nums">{fmtUSD(r.revenue_ttm, { dp: 0 })}</TableCell>
+                                <TableCell className="text-right tabular-nums text-muted-foreground">{fmtUSD(r.consumables_cost_ttm, { dp: 0 })}</TableCell>
+                                <TableCell className="text-right tabular-nums font-medium">{fmtPct(r.true_margin_pct)}</TableCell>
+                                <TableCell className="text-right tabular-nums text-muted-foreground">{fmtPct(r.catalog_margin_pct)}</TableCell>
+                                <TableCell className={cn("text-right tabular-nums font-semibold", delta !== null && delta >= 5 ? "text-destructive" : "text-muted-foreground")}>
+                                  {delta !== null ? `-${delta.toFixed(1)}` : "—"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </DesktopTable>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -184,36 +231,65 @@ export default function InventoryPage() {
                 {status.isLoading ? (
                   <div className="space-y-2 p-4">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}</div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>SKU</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead className="text-right">On hand</TableHead>
-                        <TableHead className="text-right">Par</TableHead>
-                        <TableHead className="text-right">Days of supply</TableHead>
-                        <TableHead className="text-right">Value</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  <>
+                    <MobileCardList>
                       {(status.data ?? []).map((r) => {
                         const b = STATUS_BADGE[r.stock_status];
                         const alert = r.stock_status === "out" || r.stock_status === "low";
                         return (
-                          <TableRow key={r.sku} className={cn(alert && "bg-destructive/5")}>
-                            <TableCell className="font-medium">{r.sku_name.replace(/ consumable$/, "")}</TableCell>
-                            <TableCell className="text-muted-foreground">{r.category.replace(/_/g, " ")}</TableCell>
-                            <TableCell className="text-right tabular-nums">{fmtInt(Math.round(Number(r.on_hand_quantity)))}</TableCell>
-                            <TableCell className="text-right tabular-nums text-muted-foreground">{fmtInt(Math.round(Number(r.par_level)))}</TableCell>
-                            <TableCell className="text-right tabular-nums">{fmtDays(r.days_of_supply)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{fmtUSD(r.on_hand_value, { dp: 0 })}</TableCell>
-                            <TableCell><Badge variant={b.variant}>{b.label}</Badge></TableCell>
-                          </TableRow>
+                          <MobileCard
+                            key={r.sku}
+                            className={cn(alert && "bg-destructive/5")}
+                            title={r.sku_name.replace(/ consumable$/, "")}
+                            subtitle={r.category.replace(/_/g, " ")}
+                            right={<Badge variant={b.variant}>{b.label}</Badge>}
+                            fields={[
+                              {
+                                label: "On hand",
+                                value: fmtInt(Math.round(Number(r.on_hand_quantity))),
+                              },
+                              { label: "Par", value: fmtInt(Math.round(Number(r.par_level))) },
+                              { label: "Days supply", value: fmtDays(r.days_of_supply) },
+                              { label: "Value", value: fmtUSD(r.on_hand_value, { dp: 0 }) },
+                            ]}
+                          />
                         );
                       })}
-                    </TableBody>
-                  </Table>
+                    </MobileCardList>
+
+                    <DesktopTable>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>SKU</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead className="text-right">On hand</TableHead>
+                            <TableHead className="text-right">Par</TableHead>
+                            <TableHead className="text-right">Days of supply</TableHead>
+                            <TableHead className="text-right">Value</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(status.data ?? []).map((r) => {
+                            const b = STATUS_BADGE[r.stock_status];
+                            const alert = r.stock_status === "out" || r.stock_status === "low";
+                            return (
+                              <TableRow key={r.sku} className={cn(alert && "bg-destructive/5")}>
+                                <TableCell className="font-medium">{r.sku_name.replace(/ consumable$/, "")}</TableCell>
+                                <TableCell className="text-muted-foreground">{r.category.replace(/_/g, " ")}</TableCell>
+                                <TableCell className="text-right tabular-nums">{fmtInt(Math.round(Number(r.on_hand_quantity)))}</TableCell>
+                                <TableCell className="text-right tabular-nums text-muted-foreground">{fmtInt(Math.round(Number(r.par_level)))}</TableCell>
+                                <TableCell className="text-right tabular-nums">{fmtDays(r.days_of_supply)}</TableCell>
+                                <TableCell className="text-right tabular-nums">{fmtUSD(r.on_hand_value, { dp: 0 })}</TableCell>
+                                <TableCell><Badge variant={b.variant}>{b.label}</Badge></TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </DesktopTable>
+                  </>
                 )}
               </CardContent>
             </Card>

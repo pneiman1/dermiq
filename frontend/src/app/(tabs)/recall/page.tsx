@@ -54,7 +54,7 @@ export default function RecallPage() {
         <ErrorCard message="Couldn't load the recall queue." onRetry={() => summary.refetch()} />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <KPICard
               label="Total in queue"
               value={summary.data ? fmtInt(summary.data.total) : "—"}

@@ -161,7 +161,7 @@ export default function ExecutivePage() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <KPICard
               label="Net revenue (90d)"
               value={fmtUSD(kpis.netRev.toString(), { dp: 0 })}
@@ -192,20 +192,20 @@ export default function ExecutivePage() {
           </div>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-5">
               <CardTitle className="text-base">Net revenue — last 90 days</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
               <RevenueLineChart data={kpis.lineData} />
             </CardContent>
           </Card>
 
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-5">
                 <CardTitle className="text-base">Revenue by category — last 30 weekdays</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
                 <CategoryStackedBar data={kpis.categoryData} />
               </CardContent>
             </Card>
@@ -213,7 +213,7 @@ export default function ExecutivePage() {
             <div className="space-y-4">
               {providerWatchLoading ? (
                 <Card>
-                  <CardContent className="space-y-2 p-5">
+                  <CardContent className="space-y-2 p-4 sm:p-5">
                     <Skeleton className="h-4 w-32" />
                     <Skeleton className="h-3 w-48" />
                   </CardContent>
@@ -270,10 +270,10 @@ export default function ExecutivePage() {
 function KpiSkeletons() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i}>
-            <CardContent className="space-y-2 p-5">
+            <CardContent className="space-y-2 p-4 sm:p-5">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-28" />
             </CardContent>

@@ -100,7 +100,7 @@ export default function AiStudioPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <Card key={i}>
-                <CardContent className="space-y-3 p-5">
+                <CardContent className="space-y-3 p-4 sm:p-5">
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-8 w-20" />
                   <Skeleton className="h-4 w-full" />
@@ -131,7 +131,7 @@ export default function AiStudioPage() {
         </div>
 
         <Card>
-          <CardContent className="space-y-4 p-5">
+          <CardContent className="space-y-4 p-4 sm:p-5">
             <div className="flex flex-wrap gap-2">
               {SAMPLE_QUESTIONS.map((q) => (
                 <button
@@ -139,7 +139,7 @@ export default function AiStudioPage() {
                   type="button"
                   disabled={chat.isPending}
                   onClick={() => ask(q)}
-                  className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-[44px] rounded-full border border-border bg-muted/40 px-4 py-1.5 text-xs text-muted-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 sm:px-3"
                 >
                   {q}
                 </button>
@@ -193,9 +193,11 @@ export default function AiStudioPage() {
                 onChange={(e) => setInput(e.target.value)}
                 disabled={chat.isPending}
                 placeholder="Ask a question about revenue, providers, segments, recall…"
-                className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none transition focus:border-primary disabled:opacity-50"
+                // 56px tall and 16px text on mobile: a comfortable tap target, and
+                // text-base is what stops iOS Safari zooming the page on focus.
+                className="h-14 w-full min-w-0 rounded-lg border border-border bg-background px-4 text-base outline-none transition focus:border-primary disabled:opacity-50 sm:h-auto sm:py-2 sm:text-sm"
               />
-              <Button type="submit" size="sm" disabled={chat.isPending || !input.trim()}>
+              <Button type="submit" size="sm" className="shrink-0" disabled={chat.isPending || !input.trim()}>
                 <Send className="h-3.5 w-3.5" />
                 Ask
               </Button>

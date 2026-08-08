@@ -32,7 +32,7 @@ export function SegmentCard({ segment }: { segment: PatientSegment }) {
 
   return (
     <Card className="flex flex-col">
-      <CardContent className="flex flex-1 flex-col gap-4 p-5">
+      <CardContent className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
         <div>
           <p className="font-semibold text-primary">{segment.cluster_name}</p>
           <span
@@ -70,7 +70,7 @@ export function SegmentCard({ segment }: { segment: PatientSegment }) {
       </CardContent>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{segment.cluster_name}</DialogTitle>
             <DialogDescription>

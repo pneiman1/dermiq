@@ -68,7 +68,7 @@ export function ProviderDrillInDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="sm:max-w-3xl">
         {provider && (
           <>
             <DialogHeader>
@@ -79,7 +79,7 @@ export function ProviderDrillInDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
               <Stat label="Visits (TTM)" value={fmtInt(provider.visits_ttm)} />
               <Stat label="Avg ticket" value={fmtUSD(provider.avg_ticket_ttm, { dp: 2 })} />
               <Stat label="Rev / hour" value={fmtUSD(provider.revenue_per_hour_ttm, { dp: 0 })} />

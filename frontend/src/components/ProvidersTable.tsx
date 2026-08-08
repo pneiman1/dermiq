@@ -11,9 +11,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DesktopTable,
+  MobileCard,
+  MobileCardList,
+  MobileSortBar,
+} from "@/components/MobileCardList";
 import { fmtInt, fmtPct, fmtUSD } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { ProviderScorecardRow } from "@/lib/types";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "revenue_per_hour_ttm", label: "Rev / hour" },
+  { key: "revenue_ttm", label: "Revenue" },
+  { key: "visits_ttm", label: "Visits" },
+  { key: "avg_ticket_ttm", label: "Avg ticket" },
+  { key: "cross_sell_rate_ttm", label: "Cross-sell" },
+  { key: "skincare_attach_rate_ttm", label: "Skincare attach" },
+  { key: "provider_name", label: "Provider name" },
+];
 
 type SortKey =
   | "provider_name"
@@ -88,47 +104,94 @@ export function ProvidersTable({
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {head("Provider", "provider_name", "left")}
-          {head("Rev / hour", "revenue_per_hour_ttm", "left")}
-          {head("Revenue", "revenue_ttm")}
-          {head("Visits", "visits_ttm")}
-          {head("Avg ticket", "avg_ticket_ttm")}
-          {head("Cross-sell", "cross_sell_rate_ttm")}
-          {head("Skincare attach", "skincare_attach_rate_ttm")}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      {/* <lg: one card per provider, all seven metrics visible without scrolling
+          sideways. Reads the same `sorted` array as the table below. */}
+      <MobileSortBar
+        options={SORT_OPTIONS}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onKeyChange={(k) => {
+          setSortKey(k);
+          setSortDir(k === "provider_name" ? "asc" : "desc");
+        }}
+        onDirToggle={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+      />
+      <MobileCardList>
         {sorted.map((r) => {
-          const rph = num(r, "revenue_per_hour_ttm");
-          const pct = rph !== null && maxRevPerHour > 0 ? (rph / maxRevPerHour) * 100 : 0;
+          const rphv = num(r, "revenue_per_hour_ttm");
+          const pct = rphv !== null && maxRevPerHour > 0 ? (rphv / maxRevPerHour) * 100 : 0;
           return (
-            <TableRow key={r.provider_id} onClick={() => onRowClick(r)} className="cursor-pointer">
-              <TableCell>
-                <div className="font-medium">{r.provider_name}</div>
-                <div className="text-xs text-muted-foreground">{r.provider_role}</div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className="tabular-nums text-slate-700 dark:text-slate-300">
-                    {rph !== null ? fmtUSD(String(rph), { dp: 0 }) : "—"}
-                  </span>
+            <MobileCard
+              key={r.provider_id}
+              title={r.provider_name}
+              subtitle={r.provider_role}
+              onClick={() => onRowClick(r)}
+              fields={[
+                { label: "Revenue", value: fmtUSD(r.revenue_ttm, { dp: 0 }) },
+                { label: "Visits", value: fmtInt(r.visits_ttm) },
+                { label: "Avg ticket", value: fmtUSD(r.avg_ticket_ttm, { dp: 2 }) },
+                { label: "Cross-sell", value: fmtPct(r.cross_sell_rate_ttm) },
+                { label: "Skincare", value: fmtPct(r.skincare_attach_rate_ttm) },
+              ]}
+            >
+              <div className="mt-2.5 flex items-center gap-2">
+                <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
                 </div>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{fmtUSD(r.revenue_ttm, { dp: 0 })}</TableCell>
-              <TableCell className="text-right tabular-nums">{fmtInt(r.visits_ttm)}</TableCell>
-              <TableCell className="text-right tabular-nums">{fmtUSD(r.avg_ticket_ttm, { dp: 2 })}</TableCell>
-              <TableCell className="text-right tabular-nums">{fmtPct(r.cross_sell_rate_ttm)}</TableCell>
-              <TableCell className="text-right tabular-nums">{fmtPct(r.skincare_attach_rate_ttm)}</TableCell>
-            </TableRow>
+                <span className="shrink-0 text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                  {rphv !== null ? fmtUSD(String(rphv), { dp: 0 }) : "—"} / hr
+                </span>
+              </div>
+            </MobileCard>
           );
         })}
-      </TableBody>
-    </Table>
+      </MobileCardList>
+
+      <DesktopTable>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {head("Provider", "provider_name", "left")}
+              {head("Rev / hour", "revenue_per_hour_ttm", "left")}
+              {head("Revenue", "revenue_ttm")}
+              {head("Visits", "visits_ttm")}
+              {head("Avg ticket", "avg_ticket_ttm")}
+              {head("Cross-sell", "cross_sell_rate_ttm")}
+              {head("Skincare attach", "skincare_attach_rate_ttm")}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sorted.map((r) => {
+              const rph = num(r, "revenue_per_hour_ttm");
+              const pct = rph !== null && maxRevPerHour > 0 ? (rph / maxRevPerHour) * 100 : 0;
+              return (
+                <TableRow key={r.provider_id} onClick={() => onRowClick(r)} className="cursor-pointer">
+                  <TableCell>
+                    <div className="font-medium">{r.provider_name}</div>
+                    <div className="text-xs text-muted-foreground">{r.provider_role}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="tabular-nums text-slate-700 dark:text-slate-300">
+                        {rph !== null ? fmtUSD(String(rph), { dp: 0 }) : "—"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtUSD(r.revenue_ttm, { dp: 0 })}</TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtInt(r.visits_ttm)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtUSD(r.avg_ticket_ttm, { dp: 2 })}</TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtPct(r.cross_sell_rate_ttm)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{fmtPct(r.skincare_attach_rate_ttm)}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </DesktopTable>
+    </>
   );
 }

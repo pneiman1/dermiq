@@ -15,11 +15,16 @@ const buttonVariants = cva(
         ghost: "hover:bg-muted hover:text-foreground",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
       },
+      // Every size is at least 44px tall below `sm` (Apple HIG minimum tap target)
+      // and snaps back to the original desktop height at the `sm` breakpoint.
+      // NOTE: because these carry `sm:` variants, a call site that shrinks a button
+      // must also supply the `sm:` half (e.g. `h-7 w-7 sm:h-7 sm:w-7`) — an
+      // unprefixed class alone cannot override a prefixed one in tailwind-merge.
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-6",
-        icon: "h-9 w-9",
+        default: "h-11 px-4 py-2 sm:h-9",
+        sm: "h-11 rounded-md px-3 text-xs sm:h-8",
+        lg: "h-11 rounded-md px-6 sm:h-10",
+        icon: "h-11 w-11 sm:h-9 sm:w-9",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

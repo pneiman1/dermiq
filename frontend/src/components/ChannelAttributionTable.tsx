@@ -12,6 +12,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChannelHealthBadge } from "@/components/ChannelHealthBadge";
+import {
+  DesktopTable,
+  MobileCard,
+  MobileCardList,
+  MobileSortBar,
+} from "@/components/MobileCardList";
 import { channelLabel } from "@/lib/channels";
 import { fmtInt, fmtRatio, fmtUSD } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -27,6 +33,16 @@ type SortKey =
   | "channel_health";
 
 type NumKey = Exclude<SortKey, "channel" | "channel_health">;
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "spend_ttm", label: "Spend" },
+  { key: "patients_acquired_ttm", label: "Acquired" },
+  { key: "cac_ttm", label: "CAC" },
+  { key: "avg_ltv_run_rate_ttm", label: "Avg LTV run-rate" },
+  { key: "ltv_cac_ratio_ttm", label: "LTV:CAC" },
+  { key: "channel", label: "Channel" },
+  { key: "channel_health", label: "Health" },
+];
 
 function num(r: ChannelAttributionRow, k: NumKey): number | null {
   const v = r[k];
@@ -86,39 +102,80 @@ export function ChannelAttributionTable({ rows }: { rows: ChannelAttributionRow[
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {head("Channel", "channel", "left")}
-          {head("Acquired", "patients_acquired_ttm")}
-          {head("Spend", "spend_ttm")}
-          {head("CAC", "cac_ttm")}
-          {head("Avg LTV run-rate", "avg_ltv_run_rate_ttm")}
-          {head("LTV:CAC", "ltv_cac_ratio_ttm")}
-          {head("Health", "channel_health", "left")}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      <MobileSortBar
+        options={SORT_OPTIONS}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onKeyChange={(k) => {
+          setSortKey(k);
+          setSortDir(k === "channel" || k === "channel_health" ? "asc" : "desc");
+        }}
+        onDirToggle={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+      />
+      <MobileCardList>
         {sorted.map((r) => (
-          <TableRow key={r.acquisition_channel}>
-            <TableCell className="font-medium">{channelLabel(r.acquisition_channel)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtInt(r.patients_acquired_ttm)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtUSD(r.spend_ttm, { dp: 0 })}</TableCell>
-            <TableCell className="text-right tabular-nums">
-              {r.cac_ttm !== null ? fmtUSD(r.cac_ttm, { dp: 0 }) : "—"}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {r.avg_ltv_run_rate_ttm !== null ? fmtUSD(r.avg_ltv_run_rate_ttm, { dp: 0 }) : "—"}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {r.ltv_cac_ratio_ttm !== null ? fmtRatio(r.ltv_cac_ratio_ttm) : "—"}
-            </TableCell>
-            <TableCell>
-              <ChannelHealthBadge health={r.channel_health} />
-            </TableCell>
-          </TableRow>
+          <MobileCard
+            key={r.acquisition_channel}
+            title={channelLabel(r.acquisition_channel)}
+            right={<ChannelHealthBadge health={r.channel_health} />}
+            fields={[
+              { label: "Acquired", value: fmtInt(r.patients_acquired_ttm) },
+              { label: "Spend", value: fmtUSD(r.spend_ttm, { dp: 0 }) },
+              { label: "CAC", value: r.cac_ttm !== null ? fmtUSD(r.cac_ttm, { dp: 0 }) : "—" },
+              {
+                label: "LTV:CAC",
+                value: r.ltv_cac_ratio_ttm !== null ? fmtRatio(r.ltv_cac_ratio_ttm) : "—",
+              },
+              {
+                label: "Avg LTV run-rate",
+                value:
+                  r.avg_ltv_run_rate_ttm !== null
+                    ? fmtUSD(r.avg_ltv_run_rate_ttm, { dp: 0 })
+                    : "—",
+                wide: true,
+              },
+            ]}
+          />
         ))}
-      </TableBody>
-    </Table>
+      </MobileCardList>
+
+      <DesktopTable>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {head("Channel", "channel", "left")}
+              {head("Acquired", "patients_acquired_ttm")}
+              {head("Spend", "spend_ttm")}
+              {head("CAC", "cac_ttm")}
+              {head("Avg LTV run-rate", "avg_ltv_run_rate_ttm")}
+              {head("LTV:CAC", "ltv_cac_ratio_ttm")}
+              {head("Health", "channel_health", "left")}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sorted.map((r) => (
+              <TableRow key={r.acquisition_channel}>
+                <TableCell className="font-medium">{channelLabel(r.acquisition_channel)}</TableCell>
+                <TableCell className="text-right tabular-nums">{fmtInt(r.patients_acquired_ttm)}</TableCell>
+                <TableCell className="text-right tabular-nums">{fmtUSD(r.spend_ttm, { dp: 0 })}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.cac_ttm !== null ? fmtUSD(r.cac_ttm, { dp: 0 }) : "—"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.avg_ltv_run_rate_ttm !== null ? fmtUSD(r.avg_ltv_run_rate_ttm, { dp: 0 }) : "—"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.ltv_cac_ratio_ttm !== null ? fmtRatio(r.ltv_cac_ratio_ttm) : "—"}
+                </TableCell>
+                <TableCell>
+                  <ChannelHealthBadge health={r.channel_health} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </DesktopTable>
+    </>
   );
 }

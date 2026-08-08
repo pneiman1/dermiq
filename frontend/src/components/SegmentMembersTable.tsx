@@ -13,6 +13,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  DesktopTable,
+  MobileCard,
+  MobileCardList,
+  MobileSortBar,
+} from "@/components/MobileCardList";
 import { fmtUSD } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { PatientSegmentMember } from "@/lib/types";
@@ -31,6 +37,14 @@ const RECENCY_VARIANT: Record<string, "success" | "warning" | "danger" | "second
   lapsed: "danger",
   dormant: "secondary",
 };
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "total_revenue", label: "LTV" },
+  { key: "name", label: "Patient" },
+  { key: "ltv_tier", label: "Tier" },
+  { key: "recency_tier", label: "Recency" },
+  { key: "last_visit_date", label: "Last visit" },
+];
 
 export function SegmentMembersTable({ rows }: { rows: PatientSegmentMember[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("total_revenue");
@@ -81,43 +95,88 @@ export function SegmentMembersTable({ rows }: { rows: PatientSegmentMember[] }) 
   };
 
   return (
-    <div className="max-h-[60vh] overflow-y-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {head("Patient", "name")}
-            {head("LTV", "total_revenue", "right")}
-            {head("Tier", "ltv_tier")}
-            {head("Recency", "recency_tier")}
-            {head("Last visit", "last_visit_date")}
-            <TableHead>Provider</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sorted.map((m) => (
-            <TableRow key={m.patient_id}>
-              <TableCell className="font-medium">
-                {m.first_name} {m.last_name}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{fmtUSD(m.total_revenue, { dp: 0 })}</TableCell>
-              <TableCell>
-                <Badge variant={LTV_VARIANT[m.ltv_tier] ?? "secondary"}>{m.ltv_tier}</Badge>
-              </TableCell>
-              <TableCell>
-                {m.recency_tier ? (
-                  <Badge variant={RECENCY_VARIANT[m.recency_tier] ?? "secondary"}>{m.recency_tier}</Badge>
+    // -mx-4 lets the card list run edge-to-edge inside the full-screen mobile
+    // dialog; the desktop dialog keeps its own padding.
+    <div className="-mx-4 max-h-none overflow-y-auto sm:mx-0 sm:max-h-[60vh]">
+      <MobileSortBar
+        options={SORT_OPTIONS}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onKeyChange={(k) => {
+          setSortKey(k);
+          setSortDir(k === "total_revenue" ? "desc" : "asc");
+        }}
+        onDirToggle={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+      />
+      <MobileCardList>
+        {sorted.map((m) => (
+          <MobileCard
+            key={m.patient_id}
+            title={`${m.first_name} ${m.last_name}`}
+            subtitle={m.dominant_provider_name ?? undefined}
+            right={<Badge variant={LTV_VARIANT[m.ltv_tier] ?? "secondary"}>{m.ltv_tier}</Badge>}
+            fields={[
+              { label: "LTV", value: fmtUSD(m.total_revenue, { dp: 0 }) },
+              {
+                label: "Recency",
+                value: m.recency_tier ? (
+                  <Badge variant={RECENCY_VARIANT[m.recency_tier] ?? "secondary"}>
+                    {m.recency_tier}
+                  </Badge>
                 ) : (
                   "—"
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {m.last_visit_date ? format(parseISO(m.last_visit_date), "MMM d, yyyy") : "—"}
-              </TableCell>
-              <TableCell className="text-muted-foreground">{m.dominant_provider_name ?? "—"}</TableCell>
+                ),
+              },
+              {
+                label: "Last visit",
+                value: m.last_visit_date
+                  ? format(parseISO(m.last_visit_date), "MMM d, yyyy")
+                  : "—",
+                wide: true,
+              },
+            ]}
+          />
+        ))}
+      </MobileCardList>
+
+      <DesktopTable>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {head("Patient", "name")}
+              {head("LTV", "total_revenue", "right")}
+              {head("Tier", "ltv_tier")}
+              {head("Recency", "recency_tier")}
+              {head("Last visit", "last_visit_date")}
+              <TableHead>Provider</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {sorted.map((m) => (
+              <TableRow key={m.patient_id}>
+                <TableCell className="font-medium">
+                  {m.first_name} {m.last_name}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{fmtUSD(m.total_revenue, { dp: 0 })}</TableCell>
+                <TableCell>
+                  <Badge variant={LTV_VARIANT[m.ltv_tier] ?? "secondary"}>{m.ltv_tier}</Badge>
+                </TableCell>
+                <TableCell>
+                  {m.recency_tier ? (
+                    <Badge variant={RECENCY_VARIANT[m.recency_tier] ?? "secondary"}>{m.recency_tier}</Badge>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {m.last_visit_date ? format(parseISO(m.last_visit_date), "MMM d, yyyy") : "—"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">{m.dominant_provider_name ?? "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </DesktopTable>
     </div>
   );
 }

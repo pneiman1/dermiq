@@ -2,8 +2,8 @@
 // so individual cards below don't need to repeat it.
 export function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div>
-      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+    <div className="min-w-0">
+      <h2 className="text-base font-semibold tracking-tight sm:text-lg">{title}</h2>
       {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
     </div>
   );

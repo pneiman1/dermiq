@@ -2,39 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Users,
-  Megaphone,
-  GitBranch,
-  PhoneCall,
-  Package,
-  MessageSquare,
-  Sparkles,
-} from "lucide-react";
 
+import { NAV } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
-const NAV: { href: string; label: string; icon: typeof LayoutDashboard; iconClass?: string }[] = [
-  { href: "/executive", label: "Executive", icon: LayoutDashboard },
-  { href: "/providers", label: "Providers", icon: Users },
-  { href: "/marketing", label: "Marketing", icon: Megaphone },
-  { href: "/flow", label: "Flow", icon: GitBranch },
-  { href: "/recall", label: "Recall", icon: PhoneCall },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/ai-studio", label: "AI Studio", icon: MessageSquare },
-  // AI-powered: teal-tinted Sparkles to signal the LLM-composed canvas.
-  { href: "/canvas", label: "Canvas", icon: Sparkles, iconClass: "text-primary" },
-];
-
+/**
+ * Desktop-only rail. Below `lg` the same NAV is rendered by <MobileNav />'s
+ * slide-in drawer, which the TopBar hamburger opens.
+ */
 export function Sidebar() {
   const pathname = usePathname();
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card">
+    <aside className="hidden w-56 shrink-0 flex-col border-r border-border bg-card lg:flex">
       <div className="flex h-14 items-center px-5">
         <Link
           href="/executive"
-          className="wordmark-shimmer text-[20px] font-extrabold tracking-[-0.03em]"
+          className="wordmark-shimmer rounded text-[20px] font-extrabold tracking-[-0.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           DermIQ
         </Link>
@@ -46,8 +29,9 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 active
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",

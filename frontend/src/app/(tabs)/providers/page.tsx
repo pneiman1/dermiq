@@ -77,7 +77,7 @@ export default function ProvidersPage() {
         <>
           <div className="space-y-4">
             <SectionHeader title="Team performance" subtitle="Trailing 12 months" />
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <KPICard
                 label="Team avg revenue/hour"
                 value={summary.teamRevPerHour ? fmtUSD(summary.teamRevPerHour.toString(), { dp: 0 }) : "—"}
@@ -105,9 +105,11 @@ export default function ProvidersPage() {
           </div>
 
           <Card>
-            <CardContent className="p-5">
-              <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-800">
-                <div className="pr-5">
+            <CardContent className="p-4 sm:p-5">
+              {/* Stacks with a horizontal rule on mobile; side-by-side with a
+                  vertical divider from `sm` up. */}
+              <div className="grid grid-cols-1 divide-y divide-slate-200 dark:divide-slate-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                <div className="pb-4 sm:pb-0 sm:pr-5">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Top performer
                   </p>
@@ -116,7 +118,7 @@ export default function ProvidersPage() {
                     {fmtUSD(summary.top.revenue_per_hour_ttm, { dp: 0 })} / productive hour
                   </p>
                 </div>
-                <div className="pl-5">
+                <div className="pt-4 sm:pl-5 sm:pt-0">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Lowest performer
                   </p>
@@ -145,10 +147,10 @@ export default function ProvidersPage() {
 function ProvidersSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i}>
-            <CardContent className="space-y-2 p-5">
+            <CardContent className="space-y-2 p-4 sm:p-5">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-28" />
             </CardContent>

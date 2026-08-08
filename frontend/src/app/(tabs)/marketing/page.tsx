@@ -77,7 +77,7 @@ export default function MarketingPage() {
         <>
           <div className="space-y-4">
             <SectionHeader title="Channel performance" subtitle="Trailing 12 months" />
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <KPICard label="Total acquired" value={fmtInt(kpis.totalAcquired)} />
               <KPICard label="Spend" value={fmtUSD(kpis.totalSpend.toString(), { dp: 0 })} />
               <KPICard
@@ -102,12 +102,12 @@ export default function MarketingPage() {
 
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-5">
                 <CardTitle className="text-base">
                   Patients acquired by channel — last 18 months
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
                 {acq.isError ? (
                   <p className="py-12 text-center text-sm text-muted-foreground">
                     Couldn&apos;t load acquisition data.
@@ -152,10 +152,10 @@ export default function MarketingPage() {
 function MarketingSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i}>
-            <CardContent className="space-y-2 p-5">
+            <CardContent className="space-y-2 p-4 sm:p-5">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-28" />
             </CardContent>

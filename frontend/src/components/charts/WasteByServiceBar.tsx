@@ -11,6 +11,8 @@ import {
   YAxis,
 } from "recharts";
 
+import { useIsDesktop } from "@/lib/useMediaQuery";
+
 export interface WastePoint {
   name: string;
   wasteRate: number; // percent, e.g. 4.6
@@ -29,6 +31,10 @@ function colorFor(rate: number, max: number): string {
 
 export function WasteByServiceBar({ data }: { data: WastePoint[] }) {
   const max = data.reduce((m, d) => Math.max(m, d.wasteRate), 0);
+  const isDesktop = useIsDesktop();
+  // Category labels are a fixed pixel gutter in Recharts, so on a 375px screen the
+  // desktop 150px would eat 44% of the chart. 104px still fits most service names.
+  const labelWidth = isDesktop ? 150 : 104;
   return (
     <ResponsiveContainer width="100%" height={Math.max(220, data.length * 34)}>
       <BarChart
@@ -47,7 +53,7 @@ export function WasteByServiceBar({ data }: { data: WastePoint[] }) {
         <YAxis
           type="category"
           dataKey="name"
-          width={150}
+          width={labelWidth}
           tick={{ fill: "#94a3b8", fontSize: 12 }}
           tickLine={false}
           axisLine={false}

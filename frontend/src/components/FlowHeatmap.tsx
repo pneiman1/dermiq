@@ -1,7 +1,8 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 
+import { cn } from "@/lib/utils";
 import type { FlowByHourRow } from "@/lib/types";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]; // dow 1..7
@@ -14,6 +15,9 @@ function hourLabel(h: number): string {
 }
 
 export function FlowHeatmap({ rows }: { rows: FlowByHourRow[] }) {
+  // `title` tooltips never fire on touch, so a tapped cell publishes its label here.
+  const [tapped, setTapped] = useState<string | null>(null);
+
   if (rows.length === 0) return null;
 
   const hoursPresent = [...new Set(rows.map((r) => r.hour))].sort((a, b) => a - b);
@@ -49,16 +53,20 @@ export function FlowHeatmap({ rows }: { rows: FlowByHourRow[] }) {
                 {hours.map((h) => {
                   const c = counts.get(`${dow}-${h}`) ?? 0;
                   const title = `${day} ${hourLabel(h)} · ${c} appt${c === 1 ? "" : "s"}`;
-                  if (c === 0) {
-                    return <div key={h} title={title} className="h-7 rounded-sm bg-muted/40" />;
-                  }
                   const intensity = 0.2 + 0.8 * (c / max);
                   return (
-                    <div
+                    <button
                       key={h}
+                      type="button"
                       title={title}
-                      className="h-7 rounded-sm"
-                      style={{ backgroundColor: `rgba(14, 116, 144, ${intensity})` }}
+                      aria-label={title}
+                      onClick={() => setTapped((t) => (t === title ? null : title))}
+                      className={cn(
+                        "h-7 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        c === 0 && "bg-muted/40",
+                        tapped === title && "ring-2 ring-ring",
+                      )}
+                      style={c === 0 ? undefined : { backgroundColor: `rgba(14, 116, 144, ${intensity})` }}
                     />
                   );
                 })}
@@ -67,6 +75,9 @@ export function FlowHeatmap({ rows }: { rows: FlowByHourRow[] }) {
           })}
         </div>
       </div>
+      {/* Tap read-out — the touch equivalent of the hover title. */}
+      <p className="min-h-[1.25rem] text-xs text-muted-foreground lg:hidden">{tapped ?? ""}</p>
+
       <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
         Fewer
         <span className="h-3 w-3 rounded-sm bg-muted/40" />

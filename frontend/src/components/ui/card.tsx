@@ -21,6 +21,9 @@ Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
+    // Padding stays a plain (unprefixed) utility so a call-site `p-0`/`p-4` can still
+    // win: tailwind-merge cannot drop a `sm:`-prefixed class with an unprefixed one.
+    // Call sites opt into tighter mobile padding with `p-4 sm:p-5`.
     <div ref={ref} className={cn("flex flex-col space-y-1.5 p-5", className)} {...props} />
   ),
 );

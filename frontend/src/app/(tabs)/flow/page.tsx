@@ -62,7 +62,7 @@ export default function FlowPage() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KPICard label="Scheduled (90d)" value={fmtInt(agg.total)} />
             <KPICard label="Completion rate" value={fmtPct(rate(agg.completed))} />
             <KPICard label="No-show rate" value={fmtPct(rate(agg.no_show))} emphasis />
@@ -70,21 +70,21 @@ export default function FlowPage() {
           </div>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-5">
               <CardTitle className="text-base">Outcomes</CardTitle>
               <p className="text-sm text-muted-foreground">Appointment outcomes — last 90 days</p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
               <OutcomeBar completed={agg.completed} noShow={agg.no_show} cancelled={agg.cancelled} />
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-5">
               <CardTitle className="text-base">Appointments by day &amp; hour</CardTitle>
               <p className="text-sm text-muted-foreground">Trailing 12 weeks · clinic-local time</p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
               {byHour.isError ? (
                 <p className="py-12 text-center text-sm text-muted-foreground">
                   Couldn&apos;t load the heatmap.
@@ -98,7 +98,7 @@ export default function FlowPage() {
           </Card>
 
           <Card className="overflow-hidden">
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-5">
               <CardTitle className="text-base">No-show rate by provider</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -126,10 +126,10 @@ export default function FlowPage() {
 function FlowSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
-            <CardContent className="space-y-2 p-5">
+            <CardContent className="space-y-2 p-4 sm:p-5">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-28" />
             </CardContent>

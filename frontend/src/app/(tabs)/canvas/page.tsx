@@ -14,6 +14,7 @@ type RGLayout = { i: string; x: number; y: number; w: number; h: number };
 
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useIsDesktop } from "@/lib/useMediaQuery";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,10 @@ const GridLayoutCmp = RGLModule.default ?? RGLModule;
 const WidthProvider = RGLModule.WidthProvider ?? GridLayoutCmp.WidthProvider;
 const Grid = WidthProvider(GridLayoutCmp);
 const LS_KEY = "dermiq.canvas.v1";
+
+// Row span used for every card in the collapsed single-column mobile grid.
+// 8 rows × 32px + 7 × 16px margin ≈ 368px, enough for a legible chart.
+const MOBILE_ROWS = 8;
 
 const FALLBACK_CHIPS = [
   "Revenue by provider (bar chart)",
@@ -140,6 +145,19 @@ export default function CanvasPage() {
   }, [refreshSaved]);
 
   const chips = charts.length === 0 ? FALLBACK_CHIPS : FOLLOWUP_CHIPS;
+
+  const isDesktop = useIsDesktop();
+
+  // Below lg the grid collapses to a single read-only column: react-grid-layout's
+  // drag/resize handles are mouse-oriented and fight the page scroll on touch.
+  // The persisted desktop `layout` is never written while mobile (onLayoutChange is
+  // detached), so switching back to a wide viewport restores the arrangement intact.
+  const effectiveLayout = useMemo(() => {
+    if (isDesktop) return layout;
+    return [...layout]
+      .sort((a, b) => a.y - b.y || a.x - b.x)
+      .map((l, i) => ({ ...l, x: 0, y: i * MOBILE_ROWS, w: 1, h: MOBILE_ROWS }));
+  }, [isDesktop, layout]);
 
   const acMatches = useMemo(() => {
     const q = input.trim().toLowerCase();
@@ -255,10 +273,10 @@ export default function CanvasPage() {
 
   return (
     <div className="relative flex h-full flex-col">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <PageHeader title="Canvas" subtitle="Ask for any visualization" />
         {/* Saved canvases dropdown */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <Button variant="outline" size="sm" onClick={() => setMenuOpen((o) => !o)}>
             Saved canvases
             <ChevronDown className="ml-1 h-3.5 w-3.5" />
@@ -267,7 +285,7 @@ export default function CanvasPage() {
             <div className="absolute right-0 z-20 mt-1 w-64 rounded-md border border-border bg-card p-1 shadow-lg">
               <button
                 onClick={saveCurrent}
-                className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-muted"
+                className="flex min-h-[44px] w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-muted sm:min-h-0"
               >
                 <Save className="h-3.5 w-3.5" /> Save current canvas…
               </button>
@@ -279,7 +297,7 @@ export default function CanvasPage() {
                   <button
                     key={s.canvas_id}
                     onClick={() => loadCanvas(s.canvas_id)}
-                    className="block w-full truncate rounded px-3 py-2 text-left text-sm hover:bg-muted"
+                    className="block min-h-[44px] w-full truncate rounded px-3 py-2 text-left text-sm hover:bg-muted sm:min-h-0"
                   >
                     {s.title}
                   </button>
@@ -291,7 +309,9 @@ export default function CanvasPage() {
       </div>
 
       {/* Grid area (scrolls; leaves room for the sticky composer) */}
-      <div className="mt-4 flex-1 overflow-y-auto pb-40">
+      {/* Bottom padding clears the sticky composer, which is taller on mobile
+          (56px input + wrapped chips). */}
+      <div className="mt-4 flex-1 overflow-y-auto pb-56 sm:pb-40">
         {charts.length === 0 && !pendingId ? (
           <div className="flex h-full min-h-[300px] flex-col items-center justify-center text-center">
             <Sparkles className="h-12 w-12 text-slate-300" />
@@ -302,11 +322,13 @@ export default function CanvasPage() {
         ) : (
           <Grid
             className="layout"
-            layout={layout}
-            cols={12}
+            layout={effectiveLayout}
+            cols={isDesktop ? 12 : 1}
             rowHeight={32}
             margin={[16, 16]}
-            onLayoutChange={setLayout}
+            onLayoutChange={isDesktop ? setLayout : undefined}
+            isDraggable={isDesktop}
+            isResizable={isDesktop}
             draggableCancel=".no-drag"
             isBounded
           >
@@ -320,12 +342,24 @@ export default function CanvasPage() {
                         <p className="truncate text-[12px] italic text-slate-500">{chart.reasoning}</p>
                       )}
                     </div>
-                    <div className="no-drag flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <button onClick={() => refreshChart(chart)} title="Refresh" className="rounded p-1 hover:bg-muted">
-                        <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                    {/* Always visible on touch (there is no hover to reveal them);
+                        reveal-on-hover is preserved from `lg` up. */}
+                    <div className="no-drag flex shrink-0 items-center gap-1 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
+                      <button
+                        onClick={() => refreshChart(chart)}
+                        title="Refresh"
+                        aria-label={`Refresh ${chart.spec.title}`}
+                        className="flex h-9 w-9 items-center justify-center rounded hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-auto lg:w-auto lg:p-1"
+                      >
+                        <RefreshCw className="h-4 w-4 text-muted-foreground lg:h-3.5 lg:w-3.5" />
                       </button>
-                      <button onClick={() => removeChart(chart.i)} title="Delete" className="rounded p-1 hover:bg-muted">
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      <button
+                        onClick={() => removeChart(chart.i)}
+                        title="Delete"
+                        aria-label={`Delete ${chart.spec.title}`}
+                        className="flex h-9 w-9 items-center justify-center rounded hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-auto lg:w-auto lg:p-1"
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground lg:h-3.5 lg:w-3.5" />
                       </button>
                     </div>
                   </div>
@@ -347,7 +381,7 @@ export default function CanvasPage() {
       </div>
 
       {/* Sticky composer */}
-      <div className="absolute inset-x-0 bottom-0 border-t border-border bg-card/80 p-4 backdrop-blur">
+      <div className="absolute inset-x-0 bottom-0 border-t border-border bg-card/80 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
         {error && (
           <div className="mb-2 flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
             <span>{error}</span>
@@ -356,13 +390,15 @@ export default function CanvasPage() {
             </button>
           </div>
         )}
-        <div className="mb-2 flex flex-wrap gap-2">
+        {/* Chips wrap to as many rows as they need; the strip scrolls rather than
+            pushing the input off-screen on a short phone. */}
+        <div className="mb-2 flex max-h-20 flex-wrap gap-2 overflow-y-auto sm:max-h-none sm:overflow-visible">
           {chips.map((c) => (
             <button
               key={c}
               onClick={() => submit(c)}
               disabled={loading}
-              className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+              className="min-h-[36px] rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 sm:min-h-0"
             >
               {c}
             </button>
@@ -370,13 +406,16 @@ export default function CanvasPage() {
         </div>
         <div className="relative">
           {acOpen && acMatches.length > 0 && (
-            <div className="absolute bottom-[56px] left-0 z-20 w-full overflow-hidden rounded-md border border-border bg-card shadow-lg">
+            <div className="absolute bottom-[60px] left-0 z-20 w-full overflow-hidden rounded-md border border-border bg-card shadow-lg sm:bottom-[56px]">
               {acMatches.map((m, i) => (
                 <button
                   key={m}
                   onMouseEnter={() => setAcIndex(i)}
                   onClick={() => submit(m)}
-                  className={cn("block w-full px-3 py-2 text-left text-sm", i === acIndex ? "bg-muted" : "hover:bg-muted")}
+                  className={cn(
+                    "block min-h-[44px] w-full px-3 py-2 text-left text-sm sm:min-h-0",
+                    i === acIndex ? "bg-muted" : "hover:bg-muted",
+                  )}
                 >
                   {m}
                 </button>
@@ -395,13 +434,16 @@ export default function CanvasPage() {
               onKeyDown={onKeyDown}
               onBlur={() => setTimeout(() => setAcOpen(false), 150)}
               placeholder="Ask for any visualization... e.g. show me revenue by provider"
-              className="h-[52px] flex-1 rounded-lg border border-border bg-background px-4 text-sm outline-none focus:border-primary/50 disabled:opacity-60"
+              // 56px tall on mobile, and text-base (16px) so iOS Safari doesn't zoom
+              // the viewport when the keyboard opens.
+              className="h-14 min-w-0 flex-1 rounded-lg border border-border bg-background px-4 text-base outline-none focus:border-primary/50 disabled:opacity-60 sm:h-[52px] sm:text-sm"
             />
             <button
               onClick={() => submit(input)}
               disabled={loading || !input.trim()}
-              className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-40 sm:h-[52px] sm:w-[52px]"
               title="Generate"
+              aria-label="Generate chart"
             >
               {loading ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </button>
