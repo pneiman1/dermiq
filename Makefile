@@ -54,8 +54,11 @@ dbt-docs:
 	cd $(DBT_DIR) && $(DBT) docs generate && $(DBT) docs serve
 
 # Install the FastAPI backend (and dev tools) into the project virtualenv.
+# [rag] pulls anthropic + sentence-transformers, which /chat needs locally: the
+# container embeds queries through ONNX instead, but that backend reads a model
+# directory baked in at image build time and .env defaults to the torch one.
 api-install:
-	$(PIP) install -e ".[api,dev]"
+	$(PIP) install -e ".[api,rag,dev]"
 
 # Run the API with autoreload. .env is loaded above, so Snowflake creds are set.
 api-run:
