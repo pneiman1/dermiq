@@ -1,50 +1,62 @@
 # Fly.io configuration for DermIQ API (chunk-13)
 #
 # Deploy with: fly deploy --dockerfile Dockerfile.api
-# Secrets:     fly secrets set ANTHROPIC_API_KEY=... SNOWFLAKE_PRIVATE_KEY_CONTENT=...
 #
-# The SNOWFLAKE_PRIVATE_KEY_CONTENT should be base64-encoded:
+# The SNOWFLAKE_PRIVATE_KEY_CONTENT secret is base64-encoded; docker-entrypoint.sh
+# decodes it to /secrets/snowflake_rsa_key.p8 at boot and exports
+# SNOWFLAKE_PRIVATE_KEY_PATH. Set it with:
 #   fly secrets set SNOWFLAKE_PRIVATE_KEY_CONTENT=$(base64 < ~/.ssh/snowflake_rsa_key.p8)
+#
+# Region note: primary_region is 'sjc', which is where the running machine
+# actually lives. flyctl rewrites this file on deploy — if it regenerates and
+# drops these comments again, restore them rather than the other way round.
 
-app = "dermiq-api"
-primary_region = "sea"  # Seattle (Pacific)
+app = 'dermiq-api'
+primary_region = 'sjc'
 
 [build]
-  dockerfile = "Dockerfile.api"
+  dockerfile = 'Dockerfile.api'
 
 [env]
-  ENVIRONMENT = "prod"
-  LOG_LEVEL = "INFO"
-  # CORS: set via fly secrets for flexibility
-  # CORS_ORIGINS = "https://dermiq.vercel.app"
+  ENVIRONMENT = 'prod'
+  LOG_LEVEL = 'INFO'
+  # CORS_ORIGINS is a secret rather than an env var here, so the allowed origin
+  # list can change without a redeploy.
 
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = true
+  # String form ('stop'/'suspend'/'off') is the current schema; the older
+  # boolean `true` is deprecated.
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 1
-  processes = ["app"]
+  processes = ['app']
 
   [http_service.concurrency]
-    type = "requests"
+    type = 'requests'
     hard_limit = 50
     soft_limit = 40
 
-  # Health check uses the fast /health endpoint (no Snowflake)
+  # Health check hits the fast /health endpoint, which does not touch Snowflake.
+  # A failing check halts a rolling deploy — which is what the EMBEDDING_PROVIDER
+  # startup guard (dermiq/api/startup.py) relies on to stop a misconfigured
+  # image from ever serving traffic.
   [[http_service.checks]]
-    path = "/api/v1/health"
-    interval = "15s"
-    timeout = "5s"
-    grace_period = "30s"
+    interval = '15s'
+    timeout = '5s'
+    grace_period = '30s'
+    path = '/api/v1/health'
 
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = 'shared'
   cpus = 1
   memory_mb = 512
 
 # Secrets to set (via `fly secrets set`):
 # - ANTHROPIC_API_KEY
+# - ANTHROPIC_MODEL_SONNET
+# - ANTHROPIC_MONTHLY_BUDGET_USD
 # - SNOWFLAKE_ACCOUNT
 # - SNOWFLAKE_USER
 # - SNOWFLAKE_PRIVATE_KEY_CONTENT (base64-encoded .p8 file)
@@ -52,4 +64,6 @@ primary_region = "sea"  # Seattle (Pacific)
 # - SNOWFLAKE_ROLE
 # - SNOWFLAKE_WAREHOUSE
 # - SNOWFLAKE_DATABASE
-# - CORS_ORIGINS (e.g., "https://dermiq.vercel.app,http://localhost:3000")
+# - LLM_PROVIDER, EMBEDDING_PROVIDER, EMBEDDING_MODEL
+# - DEFAULT_TENANT_ID
+# - CORS_ORIGINS (e.g. "https://dermiq.vercel.app,http://localhost:3000")

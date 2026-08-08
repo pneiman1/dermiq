@@ -17,6 +17,7 @@ from platform_core.utils.logging import configure_logging, get_logger
 from platform_core.warehouse.connection import get_snowflake_connection
 
 from dermiq.api.routers import canvas, chat, inventory, marts, meta, segments
+from dermiq.api.startup import verify_embedding_provider
 
 log = get_logger(__name__)
 
@@ -49,6 +50,10 @@ def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONRespons
 async def lifespan(app: FastAPI):
     """Open one shared Snowflake connection for the app's lifetime; close on exit."""
     configure_logging()
+    # Before anything expensive: refuse to start on an embedding backend this
+    # image cannot import. Runs ahead of the Snowflake connection so the failure
+    # is the config error itself, not a credentials timeout masking it.
+    verify_embedding_provider()
     settings = get_settings()
     with ExitStack() as stack:
         conn = stack.enter_context(

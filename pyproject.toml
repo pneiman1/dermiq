@@ -126,4 +126,5 @@ line-length = 100
 testpaths = ["tests"]
 markers = [
     "integration: tests that require live Snowflake credentials (skipped without them)",
+    "slow: tests that spawn a subprocess or otherwise take seconds, not milliseconds",
 ]
