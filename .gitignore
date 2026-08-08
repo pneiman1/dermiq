@@ -27,6 +27,15 @@ secrets/
 dermiq-secrets.env
 *secrets.env
 
+# Docker
+# flyctl regenerates a repo-root .dockerignore from this file on deploy. It is
+# dead weight: Dockerfile.api builds from the PARENT of this repo (it needs the
+# sibling platform-core/), so Docker resolves the context-root .dockerignore at
+# ~/projects, never here. Dockerfile.api.dockerignore is the one that applies
+# and is tracked. Ignoring this keeps the regenerated copy out of git status —
+# it does not stop flyctl from writing the file.
+/.dockerignore
+
 # IDE
 .vscode/
 .idea/
