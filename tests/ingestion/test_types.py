@@ -9,9 +9,14 @@ from dermiq.ingestion.types import (
 )
 
 
-def test_all_five_source_tables_mapped():
+def test_all_nine_source_tables_mapped():
+    # The five original sources, plus the four inventory tables chunk-11 added.
+    # Kept as an exact set comparison rather than a count: a new source with no
+    # entry here is a silent ingestion gap, which is the failure this guards.
     assert set(RAW_COLUMN_TYPES) == {
         "providers", "services", "patients", "appointments", "transactions",
+        "inventory_current_stock", "inventory_lots", "inventory_transactions",
+        "inventory_units",
     }
 
 
