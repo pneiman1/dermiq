@@ -1,6 +1,15 @@
 # Fly.io configuration for DermIQ API (chunk-13)
 #
-# Deploy with: fly deploy --dockerfile Dockerfile.api
+# Deploy from ~/projects (the parent of both platform-core and dermiq) so the
+# Docker build context covers both repos. --config and --dockerfile are then
+# relative to that cwd:
+#
+#   cd ~/projects
+#   DOCKER_HOST=unix://$HOME/.docker/run/docker.sock flyctl deploy \
+#     --config dermiq/fly.toml --dockerfile dermiq/Dockerfile.api --local-only
+#
+# The `dockerfile` key under [build] below is relative to this file and is
+# overridden by the --dockerfile flag above.
 #
 # The SNOWFLAKE_PRIVATE_KEY_CONTENT secret is base64-encoded; docker-entrypoint.sh
 # decodes it to /secrets/snowflake_rsa_key.p8 at boot and exports
