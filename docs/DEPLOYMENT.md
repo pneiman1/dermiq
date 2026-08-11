@@ -427,6 +427,18 @@ status` correctly*).
 - **The RAG corpus is cached in-process.** Rebuilding it
   (`scripts/build_rag_corpus.py`) requires an API restart to take effect.
 - **Docker Desktop 4.35+ does not run on Monterey 12.x.** Stay on 4.34.x.
+- **Local Mac dev and production authenticate to Snowflake differently.**
+  Key-pair JWT fails on the Monterey 12.7.6 Intel dev machine with `JWT token is
+  invalid` — matching fingerprint, correct passphrase, no clock skew, reproduced
+  across connector 3.13.2 / 3.14.0 / 4.7.1, root cause undiagnosed. Local dev
+  uses password + MFA (Duo) instead; production Linux uses key-pair normally.
+  See [ADR-015](DECISIONS.md#adr-015-password--mfa-for-local-mac-development-key-pair-remains-the-headless-default).
+  **Operationally this means local success is not evidence that production auth
+  works** — a broken `SNOWFLAKE_PRIVATE_KEY_CONTENT` or passphrase on Fly cannot
+  be caught from the Mac. Verify it against the deployed API:
+  ```bash
+  curl -s https://dermiq-api.fly.dev/api/v1/health/snowflake
+  ```
 
 ---
 

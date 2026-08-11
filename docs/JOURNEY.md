@@ -356,6 +356,12 @@ None of these are interesting problems. All of them cost real time, which is why
 `CLONE_TO_DEMO.md` was rewritten against an actual run rather than an idealized
 one.
 
+The one genuinely interesting problem was Snowflake key-pair auth failing on
+this Mac and nowhere else — written up in the debugging highlights below and in
+[ADR-015](DECISIONS.md#adr-015-password--mfa-for-local-mac-development-key-pair-remains-the-headless-default).
+It is the reason local development and production authenticate differently, and
+it is still undiagnosed.
+
 ### Getting the Snowflake key to Fly.io
 
 Fly stores secrets as strings, and the Snowflake private key is a
@@ -455,6 +461,32 @@ place for it. This is the most likely cause of that failed v7.
 lesson generalizes: any layer that can override configuration should be
 enumerable at boot, and the process should refuse to run on a configuration it
 cannot serve.
+
+**Snowflake key-pair JWT that works everywhere except my laptop.** The most
+frustrating one, because it is still unsolved. After the ADR-009 migration,
+key-pair auth worked headless on Linux and in the Fly container — and failed on
+the development Mac (Monterey 12.7.6 Intel, Homebrew Python 3.12) with `JWT
+token is invalid`. I checked the things that produce that error: the `SHA256:`
+fingerprint matched `RSA_PUBLIC_KEY_FP` on the user, the encrypted PKCS#8 key
+decrypted in-process without complaint, and the system clock was verified
+against NTP since JWTs are time-sensitive. I tried three connector versions —
+3.13.2, 3.14.0, 4.7.1 — and reproduced it on all of them.
+
+What made it diagnosable at all was that the *same key material* works from
+Linux, including the production container reading it as a base64 secret. That
+rules out the key, the registration, and the account, and localizes the fault to
+this Mac's Python/OpenSSL/connector stack. My best guess is how the Homebrew
+3.12 build links OpenSSL, but I could not confirm it and I am not going to write
+it down as though I had.
+
+I stopped and took the fallback: local dev uses password + MFA, production keeps
+key-pair. ADR-009 had preserved the password path for non-MFA environments, and
+it turned out to be load-bearing for a reason I never anticipated. The honest
+lesson is about knowing when to stop — this was hours of narrowing with no root
+cause, against a workaround that cost nothing but an MFA prompt. The real price
+is documented in [ADR-015](DECISIONS.md#adr-015-password--mfa-for-local-mac-development-key-pair-remains-the-headless-default):
+local and production now authenticate differently, so local success stopped
+being evidence that production auth is correct.
 
 **ONNX versus PyTorch for embeddings.** Not a bug, but the highest-leverage
 decision in the deployment work. Replacing the torch backend removed roughly

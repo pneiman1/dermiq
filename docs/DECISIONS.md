@@ -28,6 +28,7 @@ are superseded by new entries if direction changes.
 - [ADR-012](#adr-012-animated-gradient-shimmer-wordmark-visual-direction) — Animated gradient shimmer wordmark (visual direction)
 - [ADR-013](#adr-013-composable-canvas--llm-composed-visualizations-chunk-12) — Composable Canvas: LLM-composed visualizations
 - [ADR-014](#adr-014-serving-only-dependency-set-for-the-api-image-onnx-runtime-for-query-embedding-chunk-13) — Serving-only deps for the API image; ONNX query embedding
+- [ADR-015](#adr-015-password--mfa-for-local-mac-development-key-pair-remains-the-headless-default) — Password + MFA for local Mac dev; key-pair stays the headless default
 
 All ADRs are present and numbered sequentially, with no gaps. Numbers are
 independent of platform-core's ADR numbers.
@@ -507,6 +508,14 @@ non-interactive access.
   fallback even though MFA makes it non-functional on this account; it should be
   removed or rotated out separately.
 
+**See also (2026-08-10).** The password fallback preserved above turned out to be
+load-bearing. Key-pair JWT fails on the local development Mac (Monterey 12.7.6
+Intel, Homebrew Python 3.12) with `JWT token is invalid`, for reasons still
+undiagnosed, while working normally on Linux and in the Fly.io container. The
+decision here is unchanged for every headless context;
+[ADR-015](#adr-015-password--mfa-for-local-mac-development-key-pair-remains-the-headless-default)
+records why local Mac development diverges onto password + MFA.
+
 ## ADR-010: Inventory / true-margin layer, built fresh (chunk-11)
 
 **Date:** 2026-07-25
@@ -789,6 +798,91 @@ here rather than by editing them, since this log is append-only.
   (`dermiq/api/startup.py`) turns it into a startup error, which is the whole
   point of that guard. See the chunk-13.1 notes in
   [`JOURNEY.md`](JOURNEY.md#chunk-131--the-startup-guard-aug-8).
+
+## ADR-015: Password + MFA for local Mac development; key-pair remains the headless default
+
+**Date:** 2026-08-10
+**Status:** Accepted
+
+**Context.** [ADR-009](#adr-009-snowflake-key-pair-jwt-authentication-for-headless-services)
+made Snowflake key-pair (RSA JWT) authentication the mechanism for all
+non-interactive access, and it works: headless on Linux, in the Fly.io container,
+for ingestion, dbt, and Airflow. It does not work on the local development Mac.
+
+On **macOS Monterey 12.7.6 (Intel) with Homebrew Python 3.12**, connecting with
+`authenticator='SNOWFLAKE_JWT'` fails with **`JWT token is invalid`**. The usual
+causes were checked and ruled out:
+
+- **Fingerprint matches.** The `SHA256:` fingerprint computed locally from the
+  private key matches `RSA_PUBLIC_KEY_FP` on the Snowflake user (`DESC USER`).
+- **Passphrase is correct.** The encrypted PKCS#8 key decrypts in-process
+  without error; a wrong passphrase fails earlier and differently.
+- **No clock skew.** JWTs are time-sensitive and the system clock was verified
+  against NTP. Skew produces this error and was not the cause here.
+- **Not a single bad connector build.** Reproduced across
+  `snowflake-connector-python` **3.13.2**, **3.14.0**, and **4.7.1**.
+
+The same key, the same passphrase, and the same account work correctly from
+Linux — including the production Fly.io container, which reads the identical key
+material delivered as a base64 secret. That is what rules out the key, the
+registration, and the account, and localizes the fault to this Mac's Python /
+OpenSSL / connector stack.
+
+**Root cause is unknown.** This is an undiagnosed compatibility issue, recorded
+as an open question rather than a solved one. The most likely area is how the
+Homebrew Python 3.12 build on Monterey links OpenSSL and how `cryptography`
+serializes the DER key the connector signs with, but that was not confirmed and
+should not be repeated as fact.
+
+**Decision.** Split the auth mechanism by environment rather than continuing to
+debug it:
+
+- **Local Mac development** authenticates with **password + MFA (Duo)**. ADR-009
+  deliberately kept the password path as a fallback for exactly this shape of
+  problem, and an interactive developer at a terminal *can* answer an MFA
+  challenge — the constraint that made password auth unusable for headless
+  services does not apply here.
+- **Production and every headless context** — the Fly.io API container,
+  ingestion, dbt, Airflow — continue to use **key-pair JWT** unchanged. ADR-009
+  is not superseded; its decision stands everywhere it was aimed.
+
+Configure by which credentials are present in the local `.env`. Key-pair takes
+precedence when both are set, so a Mac using the password path must leave
+`SNOWFLAKE_PRIVATE_KEY_PATH` unset rather than merely adding a password
+alongside it.
+
+**Alternatives considered.**
+
+- *Keep debugging the Mac stack.* The obvious next steps are a pyenv-built
+  interpreter against a different OpenSSL, or the official python.org build. Both
+  are plausible and neither is worth blocking local development on, given a
+  working fallback that ADR-009 already sanctioned.
+- *Develop against Linux only* (a container or VM for all local work). Removes
+  the divergence at the cost of making the ordinary edit-run loop slower for
+  every future chunk. Wrong trade for a single-operator project.
+- *Drop key-pair everywhere and standardize on password + MFA.* This is the
+  reverse of ADR-009 and reintroduces its outage: headless processes cannot
+  answer a TOTP challenge at cold start.
+- *Different key size or an unencrypted key.* Not attempted systematically. If
+  this is revisited, it is a cheap thing to rule out.
+
+**Consequences.**
+
+- (+) Local development works. The pipeline, API, and dbt all run on the Mac.
+- (+) Production auth is untouched and still fully headless.
+- (–) **Local and production authenticate differently**, so local success is no
+  longer evidence that production auth is correct. Key-pair problems can only be
+  caught by deploying or by testing from Linux.
+- (–) An MFA prompt is now part of the local loop, which is friction on every
+  cold connection and cannot be scripted.
+- (–) A live `SNOWFLAKE_PASSWORD` sits in the local `.env` again. ADR-009 noted
+  this should be rotated out; it is now load-bearing for Mac dev instead.
+- (–) The root cause is still unknown, so it may resurface on a different
+  machine, a different Python build, or a future connector release.
+- (–) [`CLONE_TO_DEMO.md`](CLONE_TO_DEMO.md) and
+  [`MACOS-NOTES.md`](MACOS-NOTES.md) still describe key-pair as the verification
+  step on a fresh Mac ("NO MFA prompt = key-pair auth is working"). Those need
+  updating to match this ADR.
 
 ## How to add an ADR
 
