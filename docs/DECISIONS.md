@@ -27,6 +27,7 @@ are superseded by new entries if direction changes.
 - [ADR-011](#adr-011-inventory-extension--lots-stock-expiring-chunk-11-extension) — Inventory extension: lots, stock, expiring
 - [ADR-012](#adr-012-animated-gradient-shimmer-wordmark-visual-direction) — Animated gradient shimmer wordmark (visual direction)
 - [ADR-013](#adr-013-composable-canvas--llm-composed-visualizations-chunk-12) — Composable Canvas: LLM-composed visualizations
+- [ADR-014](#adr-014-serving-only-dependency-set-for-the-api-image-onnx-runtime-for-query-embedding-chunk-13) — Serving-only deps for the API image; ONNX query embedding
 
 All ADRs are present and numbered sequentially, with no gaps. Numbers are
 independent of platform-core's ADR numbers.
@@ -768,6 +769,26 @@ sentence-transformers" would have broken retrieval.
 - (–) `EMBEDDING_PROVIDER` must be `onnx` wherever the slim image runs. It is an
   image-level `ENV` default, but a `.env` or `fly secrets` value overrides it,
   and the failure mode is a 500 on `/chat` rather than a startup error.
+
+**Update (2026-08-10).** Two corrections to the consequences above, recorded
+here rather than by editing them, since this log is append-only.
+
+- *"it must keep running in CI"* overstated what exists. **There is no CI** in
+  either repo — no `.github/workflows` in `dermiq` or `platform-core` — so the
+  parity test has only ever run manually. Read that line as **should run
+  manually before any change to either embedding backend, until CI is added**.
+  A workflow was considered and deferred rather than added blind: the test
+  asserts nothing unless *both* backends are installed, and it skips silently
+  otherwise, so a workflow that installs only the slim serving set would report
+  green while checking nothing — the same false-assurance shape this bullet was
+  warning about. Adding it properly means installing torch (~1.1GB) in CI and
+  failing the job on skip, and it belongs in `platform-core`, where the test
+  lives.
+- The final bullet — "the failure mode is a 500 on `/chat` rather than a startup
+  error" — was true when written and is no longer. The chunk-13.1 startup guard
+  (`dermiq/api/startup.py`) turns it into a startup error, which is the whole
+  point of that guard. See the chunk-13.1 notes in
+  [`JOURNEY.md`](JOURNEY.md#chunk-131--the-startup-guard-aug-8).
 
 ## How to add an ADR
 

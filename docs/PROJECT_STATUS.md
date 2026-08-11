@@ -1,12 +1,14 @@
 # DermIQ — Project Status
 
 Snapshot of what's shipped, what's known tech debt, and where DermIQ is headed.
-Last refreshed alongside the chunk-11 inventory work + top-bar shimmer.
+Last refreshed after the chunk-13 deployment and the chunk-13.1 startup guard.
 
 ## What's shipped
 
-All eleven chunks are implemented and running end-to-end (Postgres → Snowflake →
-dbt → FastAPI → Next.js, orchestrated by Airflow):
+All fourteen chunks are implemented and running end-to-end (Postgres → Snowflake
+→ dbt → FastAPI → Next.js, orchestrated by Airflow), and the stack is **live in
+production**: Vercel serves the frontend at `derm-iq.io`, Fly.io serves the API
+at `dermiq-api.fly.dev`.
 
 | Chunk | Shipped |
 |---|---|
@@ -23,9 +25,19 @@ dbt → FastAPI → Next.js, orchestrated by Airflow):
 | 9 | Unsupervised patient clustering (k-means, 7 segments) |
 | 10 | RAG chat over marts (Claude + local embeddings) |
 | 11 | Real inventory data: lots, stock, waste, expiry, true margin |
+| 12 | Composable Canvas — LLM-composed visualizations from a fixed grammar (ADR-013) |
+| 13 | Deploy readiness + slim API image: CORS from env, rate limiting, health-check split, Anthropic timeout + budget guard, 11.1GB → 449MB via ONNX (ADR-014) |
+| 13.1 | `EMBEDDING_PROVIDER` startup guard — refuses to boot on a backend the image can't import |
+| 14 | Mobile responsive across all tabs (drawer nav, card lists, full-screen sheets) |
+
+The dashboard is now **8 tabs** — the original 7 from chunk-7 plus Canvas, added
+in chunk-12: Executive, Providers, Marketing, Recall, Flow, Inventory, AI Studio,
+Canvas.
 
 Also shipped outside the chunk sequence: Snowflake key-pair auth migration
-(ADR-009), Node 20→22, and the shimmer gradient wordmark (ADR-012).
+(ADR-009), Node 20→22, the shimmer gradient wordmark (ADR-012), and the
+production runbook ([`DEPLOYMENT.md`](DEPLOYMENT.md)) + build story
+([`JOURNEY.md`](JOURNEY.md)).
 
 ## Known tech debt
 
@@ -44,6 +56,16 @@ Also shipped outside the chunk sequence: Snowflake key-pair auth migration
   refreshes it daily, but ad-hoc rebuilds are manual.
 - **Inventory data is synthetic fixtures.** chunk-11's lots/stock/expiry numbers are
   hand-calibrated generators, not a recovery of any prior report's figures.
+- **No CI.** Neither repo has `.github/workflows`; the whole suite runs manually.
+  This matters most for the ONNX/sentence-transformers parity test, which ADR-014
+  relies on to keep the two embedding backends in step and which skips silently
+  when either backend is absent. See the 2026-08-10 update on ADR-014.
+- **Budget guard and rate limiter are per-process.** Both are in-memory
+  (`dermiq/api/budget.py`, slowapi), so they reset on restart and do not share
+  state across machines. Correct at one machine; the effective cap multiplies by
+  machine count above that.
+- **Production reads a database named `DERMIQ_DEV`.** Works, but reads as a
+  mistake to anyone seeing the config cold.
 
 ## Roadmap
 
