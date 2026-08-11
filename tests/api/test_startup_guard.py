@@ -68,7 +68,7 @@ def test_raises_on_provider_this_guard_does_not_know():
 
 def test_logs_structured_error_before_raising():
     """Fly's logs are the only debugging surface once the container is dead."""
-    with patch("dermiq.api.startup.get_settings", return_value=_settings("voyage")):
+    with patch("dermiq.api.startup.get_settings", return_value=_settings("sentence_transformers")):
         with patch("dermiq.api.startup.importlib.util.find_spec", return_value=None):
             with patch("dermiq.api.startup.log") as mock_log:
                 with pytest.raises(StartupConfigError):
@@ -78,9 +78,9 @@ def test_logs_structured_error_before_raising():
     event, kwargs = mock_log.error.call_args[0][0], mock_log.error.call_args[1]
     assert event == "startup_config_invalid"
     assert kwargs["setting"] == "EMBEDDING_PROVIDER"
-    assert kwargs["provider"] == "voyage"
+    assert kwargs["provider"] == "sentence_transformers"
     assert kwargs["reason"] == "missing_module"
-    assert "voyageai" in kwargs["missing_modules"]
+    assert "sentence_transformers" in kwargs["missing_modules"]
 
 
 def test_app_startup_aborts_on_bad_provider():
@@ -94,20 +94,73 @@ def test_app_startup_aborts_on_bad_provider():
                     pass  # never reached: startup raises before yielding
 
 
-def test_module_map_covers_every_configurable_provider():
-    """A provider pydantic accepts but the map lacks would fail closed at startup;
-    catching it here is cheaper than catching it on a deploy."""
+def _embedder_settings(provider: str) -> SimpleNamespace:
+    """The attributes Embedder.__init__ reads. It does not load a model, so
+    constructing one is cheap enough to do per-provider in a unit test."""
+    return SimpleNamespace(
+        embedding_provider=provider,
+        sentence_transformers_model="all-MiniLM-L6-v2",
+        onnx_model_dir="/nonexistent",
+        onnx_max_seq_length=256,
+    )
+
+
+def _embedder_accepts(provider: str) -> bool:
+    """Does platform-core's Embedder actually wire this provider?"""
+    from platform_core.rag.embedder import Embedder
+
+    with patch("platform_core.rag.embedder.get_settings",
+               return_value=_embedder_settings(provider)):
+        try:
+            Embedder()
+        except NotImplementedError:
+            return False
+    return True
+
+
+def test_guard_map_matches_what_the_embedder_implements():
+    """The guard's accepted set must equal the Embedder's wired set.
+
+    A provider in the map that the Embedder rejects would sail through startup
+    and raise NotImplementedError on the first /chat query — precisely the
+    deferred failure this guard was written to eliminate. 'voyage' was in the
+    map for exactly that reason until chunk-13.1's cleanup.
+    """
+    for provider in EMBEDDING_PROVIDER_MODULES:
+        assert _embedder_accepts(provider), (
+            f"{provider!r} is guard-accepted but not wired in Embedder — it would "
+            "pass startup and fail on the first query"
+        )
+
+
+def test_configurable_but_unimplemented_provider_fails_closed():
+    """platform-core's Literal is wider than the map, and must fail at startup.
+
+    'voyage' is scaffolded in config with no backend behind it. Configuring it
+    has to abort the process, not defer to request time.
+    """
     from platform_core.config import Settings
 
     configurable = set(Settings.model_fields["embedding_provider"].annotation.__args__)
-    assert configurable == set(EMBEDDING_PROVIDER_MODULES)
+    unimplemented = configurable - set(EMBEDDING_PROVIDER_MODULES)
+    assert "voyage" in unimplemented, "guard rejects voyage until a backend exists"
+
+    for provider in unimplemented:
+        assert not _embedder_accepts(provider), (
+            f"{provider!r} is wired in Embedder but missing from the guard map — "
+            "add it to EMBEDDING_PROVIDER_MODULES"
+        )
+        with patch("dermiq.api.startup.get_settings", return_value=_settings(provider)):
+            with pytest.raises(StartupConfigError, match=provider):
+                verify_embedding_provider()
 
 
 @pytest.mark.slow
 def test_uvicorn_exits_nonzero_on_bad_provider():
     """End-to-end: the requirement is a non-zero exit, so Fly's health check fails
-    and the rolling deploy halts. Uses voyage because voyageai is genuinely not
-    installed — no mocking, the same shape as the production failure."""
+    and the rolling deploy halts. Uses voyage because config still admits it and
+    no backend implements it — no mocking, and it exercises the same abort path
+    the production failure took."""
     result = subprocess.run(
         [sys.executable, "-m", "uvicorn", "dermiq.api.main:app", "--port", "8931"],
         env={"PATH": "/usr/bin:/bin", "EMBEDDING_PROVIDER": "voyage", "HOME": "/tmp"},
@@ -119,4 +172,5 @@ def test_uvicorn_exits_nonzero_on_bad_provider():
     assert result.returncode != 0, "a misconfigured provider must not exit 0"
     combined = result.stdout + result.stderr
     assert "startup_config_invalid" in combined, "structured error must reach the logs"
-    assert "voyageai" in combined
+    assert "voyage" in combined
+    assert "unknown_provider" in combined

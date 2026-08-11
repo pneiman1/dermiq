@@ -22,13 +22,20 @@ from platform_core.utils.logging import get_logger
 
 log = get_logger(__name__)
 
-# The import each embedding backend performs at request time. Mirrors the lazy
-# imports in platform_core.rag.embedder — when a backend is added there, add it
-# here too, or it will pass this guard and fail on the first query instead.
+# The import each embedding backend performs at request time. The keys must be
+# exactly the providers ``platform_core.rag.embedder.Embedder`` actually wires —
+# a key it does not implement would pass this guard and then fail on the first
+# query, which is the failure mode the guard exists to prevent. When a backend
+# is added there, add it here too; ``test_startup_guard.py`` asserts the two
+# sets match.
+#
+# Note ``platform_core``'s ``embedding_provider`` Literal is deliberately wider
+# than this map: it still admits 'voyage', which no backend implements. That
+# combination fails closed here as an unknown provider, which is the intended
+# outcome.
 EMBEDDING_PROVIDER_MODULES: dict[str, tuple[str, ...]] = {
     "onnx": ("onnxruntime", "tokenizers"),
     "sentence_transformers": ("sentence_transformers",),
-    "voyage": ("voyageai",),
 }
 
 
@@ -71,8 +78,9 @@ def verify_embedding_provider() -> None:
 
     required = EMBEDDING_PROVIDER_MODULES.get(provider)
     if required is None:
-        # Reachable if platform-core's Literal gains a provider before this map
-        # does. Refusing to start beats starting and failing per-request.
+        # Reached by any provider the Literal admits but no backend implements
+        # ('voyage' today), and by one added to the Literal before this map.
+        # Refusing to start beats starting and failing per-request.
         known = ", ".join(sorted(EMBEDDING_PROVIDER_MODULES))
         log.error(
             "startup_config_invalid",
