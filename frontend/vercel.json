@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "(www\\.)?derm-iq\\.io" }],
+      "destination": "https://regimen.neimananalytics.com/executive",
+      "permanent": false
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "(www\\.)?derm-iq\\.io" }],
+      "destination": "https://regimen.neimananalytics.com/:path*",
+      "permanent": false
+    }
+  ]
+}

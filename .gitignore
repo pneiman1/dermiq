@@ -67,3 +67,5 @@ webserver_config.py
 
 # Snowflake
 .snowsql/
+.vercel
+.env*
