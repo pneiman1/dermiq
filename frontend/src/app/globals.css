@@ -2,48 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 210 40% 96%; /* slate-100 — more separation from white cards */
-    --foreground: 222 47% 11%; /* slate-900 */
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 193 82% 31%; /* clinical teal #0E7490 */
-    --primary-foreground: 0 0% 100%;
-    --muted: 210 40% 96%; /* slate-100 */
-    --muted-foreground: 215 16% 47%; /* slate-500 */
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 347 77% 50%; /* rose-600 */
-    --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%; /* slate-200 */
-    --input: 214 32% 91%;
-    --ring: 193 82% 31%;
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222 47% 5%; /* near slate-950 */
-    --foreground: 210 40% 98%;
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 193 75% 45%; /* lighter teal for dark */
-    --primary-foreground: 222 47% 7%;
-    --muted: 217 33% 17%; /* slate-800 */
-    --muted-foreground: 215 20% 65%; /* slate-400 */
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 347 77% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 193 75% 45%;
-  }
-}
+/* Colour lives in src/styles/tokens.css. Nothing here defines a colour value.
+ *
+ * This file used to carry a complete second palette — --primary at #0E7490,
+ * --background at slate-100, --foreground at slate-900, dark mode on slate-950
+ * — and because tailwind.config resolved every utility against those names
+ * rather than the tokens, the whole site rendered blue while tokens.css styled
+ * only the charts. It also redefined --accent as an HSL triplet, which
+ * shadowed the brand hex of the same name and sent "210 40% 96%" to Recharts
+ * as a colour.
+ *
+ * The token file now owns the UI roles too (--ui-*), so there is one system and
+ * this file holds layout only. scripts/check-theme.mjs fails the build if a
+ * colour value reappears here or if a Tailwind blue/indigo/sky/slate utility
+ * survives into the built bundle. */
 
 @layer base {
   * {
@@ -54,21 +26,22 @@
     @apply h-full;
   }
   body {
-    @apply text-foreground;
-    /* Warm neutral canvas; fixed so it covers the full viewport past the scroll.
-       Bottom is pushed darker so the gradient is actually perceptible. */
-    background: linear-gradient(180deg, #fafaf9 0%, #efefec 100%);
+    @apply bg-background text-foreground;
     background-attachment: fixed;
   }
-  .dark body {
-    background: linear-gradient(180deg, theme(colors.slate.900) 0%, theme(colors.slate.950) 100%);
-    background-attachment: fixed;
+  /* Preflight sets ::placeholder to its own gray-400. Overridden here so the
+     last off-palette colour in the bundle resolves to a token — the theme gate
+     fails on any hex the token file does not declare. */
+  ::placeholder {
+    @apply text-muted-foreground;
+    opacity: 1;
   }
 }
 
-/* Animated gradient wordmark ("DermIQ") — a teal→cyan band travels through the
-   letters via background-clip: text. Dark mode brightens the gradient; reduced
-   motion freezes it mid-band. */
+/* Animated gradient wordmark ("Barrel") — a band travels through the letters
+   via background-clip: text. Both stops are brand tokens, so the wordmark
+   follows the theme instead of carrying its own teal gradient; reduced motion
+   freezes it mid-band. */
 @keyframes wordmark-shimmer {
   0%,
   100% {
@@ -80,7 +53,12 @@
 }
 
 .wordmark-shimmer {
-  background: linear-gradient(90deg, #0e7490 0%, #22d3ee 50%, #0e7490 100%);
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0%,
+    var(--plum-light) 50%,
+    var(--accent) 100%
+  );
   background-size: 200% 100%;
   background-clip: text;
   -webkit-background-clip: text;
@@ -89,16 +67,8 @@
   animation: wordmark-shimmer 8s ease-in-out infinite;
 }
 
-.dark .wordmark-shimmer {
-  background: linear-gradient(90deg, #22d3ee 0%, #67e8f9 50%, #22d3ee 100%);
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* Tenant name — same clip technique, quieter gradient, slower (14s) so it rarely
-   syncs with the 8s wordmark shimmer. */
+/* Tenant name — same clip technique, quieter, slower (14s) so it rarely syncs
+   with the 8s wordmark shimmer. */
 @keyframes tenant-shimmer {
   0%,
   100% {
@@ -112,24 +82,9 @@
 .tenant-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(71, 85, 105, 1) 0%,
-    rgba(14, 116, 144, 0.9) 50%,
-    rgba(71, 85, 105, 1) 100%
-  );
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  animation: tenant-shimmer 14s ease-in-out infinite;
-}
-
-.dark .tenant-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(148, 163, 184, 1) 0%,
-    rgba(34, 211, 238, 0.85) 50%,
-    rgba(148, 163, 184, 1) 100%
+    var(--text-secondary) 0%,
+    var(--plum-mid) 50%,
+    var(--text-secondary) 100%
   );
   background-size: 200% 100%;
   background-clip: text;

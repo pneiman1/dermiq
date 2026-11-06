@@ -12,6 +12,7 @@ import {
 } from "recharts";
 
 import { useIsDesktop } from "@/lib/useMediaQuery";
+import { AXIS_TICK, CHART_GRID, TOOLTIP_STYLE } from "@/lib/chartTokens";
 
 export interface WastePoint {
   name: string;
@@ -19,14 +20,17 @@ export interface WastePoint {
   wasteCost: number; // USD
 }
 
-// Teal (low waste) -> rose (high waste). Interpolated over the observed range so
-// the worst offenders read hot without a hardcoded threshold.
+// Accent (low waste) -> critical (high waste), interpolated over the observed
+// range so the worst offenders read hot without a hardcoded threshold.
+//
+// The ramp is unchanged; only its endpoints moved. They used to be two
+// hardcoded RGB triplets mixed in JS, which meant the chart kept its teal
+// through a theme change and the values never reached the token file. color-mix
+// does the same interpolation in CSS, so both ends follow the cascade — night
+// theme included — and no hex survives in the bundle.
 function colorFor(rate: number, max: number): string {
   const t = max > 0 ? Math.min(rate / max, 1) : 0;
-  const teal = [14, 116, 144]; // #0E7490
-  const rose = [244, 63, 94]; // #F43F5E
-  const mix = teal.map((c, i) => Math.round(c + (rose[i] - c) * t));
-  return `rgb(${mix[0]}, ${mix[1]}, ${mix[2]})`;
+  return `color-mix(in srgb, var(--status-critical) ${Math.round(t * 100)}%, var(--accent))`;
 }
 
 export function WasteByServiceBar({ data }: { data: WastePoint[] }) {
@@ -42,10 +46,10 @@ export function WasteByServiceBar({ data }: { data: WastePoint[] }) {
         layout="vertical"
         margin={{ top: 4, right: 24, bottom: 4, left: 8 }}
       >
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} horizontal={false} />
         <XAxis
           type="number"
-          tick={{ fill: "#94a3b8", fontSize: 12 }}
+          tick={AXIS_TICK}
           tickLine={false}
           axisLine={false}
           tickFormatter={(n: number) => `${n.toFixed(1)}%`}
@@ -54,7 +58,7 @@ export function WasteByServiceBar({ data }: { data: WastePoint[] }) {
           type="category"
           dataKey="name"
           width={labelWidth}
-          tick={{ fill: "#94a3b8", fontSize: 12 }}
+          tick={AXIS_TICK}
           tickLine={false}
           axisLine={false}
         />
@@ -66,7 +70,7 @@ export function WasteByServiceBar({ data }: { data: WastePoint[] }) {
               "Waste rate",
             ];
           }}
-          contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
+          contentStyle={TOOLTIP_STYLE}
         />
         <Bar dataKey="wasteRate" radius={[0, 4, 4, 0]}>
           {data.map((d) => (

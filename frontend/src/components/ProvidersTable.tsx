@@ -139,7 +139,7 @@ export function ProvidersTable({
                 <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
                 </div>
-                <span className="shrink-0 text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                <span className="shrink-0 text-sm tabular-nums text-foreground">
                   {rphv !== null ? fmtUSD(String(rphv), { dp: 0 }) : "—"} / hr
                 </span>
               </div>
@@ -176,7 +176,7 @@ export function ProvidersTable({
                       <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
                         <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
                       </div>
-                      <span className="tabular-nums text-slate-700 dark:text-slate-300">
+                      <span className="tabular-nums text-foreground">
                         {rph !== null ? fmtUSD(String(rph), { dp: 0 }) : "—"}
                       </span>
                     </div>

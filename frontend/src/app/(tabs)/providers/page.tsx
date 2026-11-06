@@ -108,7 +108,7 @@ export default function ProvidersPage() {
             <CardContent className="p-4 sm:p-5">
               {/* Stacks with a horizontal rule on mobile; side-by-side with a
                   vertical divider from `sm` up. */}
-              <div className="grid grid-cols-1 divide-y divide-slate-200 dark:divide-slate-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+              <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0">
                 <div className="pb-4 sm:pb-0 sm:pr-5">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Top performer

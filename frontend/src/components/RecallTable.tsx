@@ -129,7 +129,7 @@ export function RecallTable({ rows }: { rows: RecallQueueRow[] }) {
         <Button
           variant="ghost"
           size="icon"
-          className={cn(box, "active:bg-slate-200 dark:active:bg-slate-700")}
+          className={cn(box, "active:bg-muted")}
           title="SMS"
           aria-label={`Send SMS to ${name}`}
           onClick={() => toast.success(`SMS queued to ${name}`)}
@@ -139,7 +139,7 @@ export function RecallTable({ rows }: { rows: RecallQueueRow[] }) {
         <Button
           variant="ghost"
           size="icon"
-          className={cn(box, "active:bg-slate-200 dark:active:bg-slate-700")}
+          className={cn(box, "active:bg-muted")}
           title="Call"
           aria-label={`Call ${name}`}
           onClick={() => toast(`Calling ${name}…`)}
@@ -149,7 +149,7 @@ export function RecallTable({ rows }: { rows: RecallQueueRow[] }) {
         <Button
           variant="ghost"
           size="icon"
-          className={cn(box, "active:bg-slate-200 dark:active:bg-slate-700")}
+          className={cn(box, "active:bg-muted")}
           title="Email"
           aria-label={`Email ${name}`}
           onClick={() => toast.success(`Email drafted to ${name}`)}

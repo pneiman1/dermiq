@@ -12,6 +12,7 @@ import {
 } from "recharts";
 
 import type { CanvasRow, ScatterSpec } from "@/lib/types";
+import { AXIS_TICK, CHART_ACCENT, CHART_GRID, TOOLTIP_STYLE } from "@/lib/chartTokens";
 
 const NoData = () => (
   <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
@@ -19,8 +20,6 @@ const NoData = () => (
   </div>
 );
 
-const AXIS_TICK = { fill: "#94a3b8", fontSize: 12 };
-const TOOLTIP_STYLE = { borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 } as const;
 
 function fmtNumber(n: number): string {
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
@@ -40,7 +39,7 @@ export function ScatterChart({ spec, data }: { spec: ScatterSpec; data: CanvasRo
   return (
     <ResponsiveContainer width="100%" height="100%">
       <RScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
         <XAxis
           type="number"
           dataKey={spec.x}
@@ -73,7 +72,7 @@ export function ScatterChart({ spec, data }: { spec: ScatterSpec; data: CanvasRo
             return p ? String(p[spec.point_label] ?? "") : "";
           }}
         />
-        <Scatter data={parsed} fill="#0E7490" />
+        <Scatter data={parsed} fill={CHART_ACCENT} />
       </RScatterChart>
     </ResponsiveContainer>
   );

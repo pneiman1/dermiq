@@ -13,6 +13,7 @@ import {
 } from "recharts";
 
 import { fmtCompactUSD, fmtUSD } from "@/lib/money";
+import { AXIS_TICK, CHART_ACCENT, CHART_AXIS, CHART_GRID, TOOLTIP_STYLE } from "@/lib/chartTokens";
 
 export interface RevenuePoint {
   date: string; // ISO yyyy-MM-dd
@@ -28,17 +29,17 @@ export function RevenueLineChart({ data }: { data: RevenuePoint[] }) {
     <div className="h-[240px] w-full sm:h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tick={AXIS_TICK}
             tickLine={false}
             axisLine={false}
             tickFormatter={(d: string) => format(parseISO(d), "MMM d")}
             minTickGap={28}
           />
           <YAxis
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tick={AXIS_TICK}
             tickLine={false}
             axisLine={false}
             width={64}
@@ -47,14 +48,14 @@ export function RevenueLineChart({ data }: { data: RevenuePoint[] }) {
           <Tooltip
             formatter={(value: number, name: string) => [fmtUSD(String(value), { dp: 0 }), name]}
             labelFormatter={(d: string) => format(parseISO(d), "EEE, MMM d, yyyy")}
-            contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
+            contentStyle={TOOLTIP_STYLE}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
           <Line
             type="linear"
             dataKey="value"
             name="Net revenue"
-            stroke="#0E7490"
+            stroke={CHART_ACCENT}
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4 }}
@@ -64,7 +65,7 @@ export function RevenueLineChart({ data }: { data: RevenuePoint[] }) {
               type="monotone"
               dataKey="avg"
               name="28-day avg"
-              stroke="#94a3b8"
+              stroke={CHART_AXIS}
               strokeWidth={1.5}
               strokeDasharray="4 4"
               dot={false}

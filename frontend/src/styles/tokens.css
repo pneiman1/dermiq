@@ -1,0 +1,206 @@
+/* tokens.css — every colour in Regimen.
+ *
+ * A hex literal in a .tsx is a bug, and so is a Tailwind colour utility like
+ * bg-slate-900. Components reference these custom properties; nothing else.
+ * scripts/check-theme.mjs reads the COMPILED bundle and fails the build on
+ * either, because a source-level check cannot see what actually ships — the
+ * sibling verticals served a teal theme for weeks while every source check
+ * passed.
+ *
+ * Each token is DEFINED ONCE in :root with its light value and REDEFINED in
+ * both night scopes below. There is deliberately no separately-named
+ * always-present token for the other theme: an --accent-dark-mode alongside
+ * --accent would force every component to choose between them, which is the
+ * exact thing custom properties exist to avoid. A component asks for --accent
+ * and the cascade answers.
+ *
+ * Two night scopes, both required:
+ *   @media (prefers-color-scheme: dark) — the OS preference, scoped so an
+ *       explicit data-theme="light" still wins.
+ *   :root[data-theme="dark"]           — the in-app toggle, which must beat the
+ *       OS preference in both directions.
+ */
+
+:root {
+  /* NOTE for anyone editing: scripts/check-contrast.mjs infers a block's theme
+     from the text preceding its opening brace, so the word d-a-r-k must not
+     appear above this first block or the light values parse as night ones.
+     That is why this rationale sits inside the body. */
+
+  /* ---- brand ---------------------------------------------------------- */
+  /* Deep plum. 9.4:1 as text on the light surface.
+
+     Chosen against three constraints. Not teal — that was the inherited
+     default this replaces, and it is what every clinical dashboard defaults
+     to. Not red and not green — those are Barrel and Yield, and three
+     verticals shown side by side on one page have to be told apart at a
+     glance. Plum sits at 315 degrees, roughly opposite Yield's 153 and well
+     clear of Barrel's 0, and it reads premium rather than medical, which is
+     the register a cosmetic practice sells in. */
+  --accent: #6B2D5C;
+
+  /* ---- surfaces and text ---------------------------------------------- */
+  /* Warm neutrals, shared with the sibling verticals on purpose: the three
+     products are one system wearing three brand hues, and the surfaces are the
+     part that should not vary. */
+  --surface-1: #FCFBF9;
+  --text-primary: #1C1917;
+  --text-secondary: #57534E;
+
+  /* ---- plum neutrals, for depth --------------------------------------- */
+  /* Fixed in both themes. Structural depth, not a theme signal; inverting
+     them is what turns them to mud. */
+  --plum-deep: #3A1F33;
+  --plum-mid: #5C3A52;
+  --plum-light: #8C6B82;
+
+  /* ---- chart categorical: six slots, fixed order, never cycled -------- */
+  /* NOT shades of the brand — two adjacent hues produce a legend nobody can
+     read. This is the sequence already validated for lightness band, chroma
+     floor, CVD separation and normal-vision separation in both modes;
+     implemented as validated and not re-derived.
+
+     In light mode three slots sit under 3:1 against the surface, so any chart
+     using them ships visible direct labels or a table view. */
+  --chart-1: #e34948;
+  --chart-2: #2a78d6;
+  --chart-3: #eda100;
+  --chart-4: #1baf7a;
+  --chart-5: #6250d6;
+  --chart-6: #eb6834;
+
+  /* ---- chart chrome --------------------------------------------------- */
+  --chart-grid: #E7E5E4;
+  --chart-axis: #78716C;
+  --chart-tooltip-border: #E7E5E4;
+  --chart-cursor: #F5F5F4;
+
+  /* ---- status --------------------------------------------------------- */
+  /* Unlike Barrel, whose brand IS red, a red chip here is unambiguous against
+     a plum brand. The icon-and-label rule still stands: colour never carries
+     the meaning alone, and these tokens only tint something already labelled. */
+  --status-critical: #B4322F;
+  --status-warning: #A4611A;
+  --status-ok: #1F7A4D;
+
+  /* ---- UI roles, as HSL triplets for Tailwind ------------------------- */
+  /* These used to live in globals.css as a SECOND, unrelated palette — slate
+     surfaces with --primary at #0E7490 — and because tailwind.config pointed
+     at that set rather than at a token file, every surface, border and button
+     was teal or slate.
+
+     Triplets rather than hex because Tailwind cannot inject an alpha channel
+     into a hex custom property, and this codebase uses bg-primary/10 and
+     bg-muted/50. tailwind.config wraps each as
+     hsl(var(--ui-x) / <alpha-value>).
+
+     They must agree with the hex tokens above — they are not independent
+     values, and tests/test_theme_tokens.py fails if they drift.
+
+     --ui-accent is NOT the brand accent. In Tailwind's vocabulary "accent" is
+     a muted hover fill; the brand is --ui-primary. Keeping the brand on
+     --accent (hex, above) and Tailwind's role on --ui-accent also prevents the
+     name collision that sent "210 40% 96%" to Recharts as a colour. */
+  --ui-background: 40 33% 98%;  /* = --surface-1  #FCFBF9 */
+  --ui-foreground: 24 10% 10%;  /* = --text-primary  #1C1917 */
+  --ui-card: 0 0% 100%;  /* #FFFFFF */
+  --ui-card-foreground: 24 10% 10%;
+  --ui-popover: 0 0% 100%;
+  --ui-popover-foreground: 24 10% 10%;
+  --ui-primary: 315 41% 30%;  /* = --accent  #6B2D5C */
+  --ui-primary-foreground: 40 33% 98%;
+  --ui-muted: 40 13% 95%;  /* #F5F4F2 — a warm neutral, never slate */
+  --ui-muted-foreground: 33 5% 32%;  /* = --text-secondary  #57534E */
+  --ui-accent: 40 13% 95%;  /* Tailwind hover fill, NOT the brand */
+  --ui-accent-foreground: 24 10% 10%;
+  --ui-destructive: 1 59% 45%;  /* = --status-critical  #B4322F */
+  --ui-destructive-foreground: 40 33% 98%;
+  --ui-border: 20 6% 90%;  /* = --chart-grid  #E7E5E4 */
+  --ui-input: 20 6% 90%;
+  --ui-ring: 315 41% 30%;  /* = --accent */
+  --radius: 0.5rem;
+}
+
+/* The night theme is DEFINED, never derived by inverting. An inverted accent is
+   a deep plum on a near-black surface — invisible. The accent LIGHTENS instead,
+   and scripts/check-contrast.mjs fails the build if the two themes ever share
+   one accent hex, which is exactly what inversion produces.
+
+   Two scopes, both required: the OS preference below, scoped so an explicit
+   data-theme="light" still wins, and the in-app toggle after it, which must
+   override the OS preference in both directions. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    --accent: #D9A0C9;
+    --surface-1: #1C1917;
+    --text-primary: #FAFAF9;
+    --text-secondary: #D6D3D1;
+    --chart-1: #e66767;
+    --chart-2: #3987e5;
+    --chart-3: #c98500;
+    --chart-4: #199e70;
+    --chart-5: #9085e9;
+    --chart-6: #d95926;
+    --chart-grid: #292524;
+    --chart-axis: #A8A29E;
+    --chart-tooltip-border: #44403C;
+    --chart-cursor: #292524;
+    --status-critical: #F08A86;
+    --status-warning: #E0A94A;
+    --status-ok: #5BC98D;
+    --ui-background: 24 10% 10%;  /* = --surface-1  #1C1917 */
+    --ui-foreground: 60 9% 98%;  /* = --text-primary  #FAFAF9 */
+    --ui-card: 20 9% 14%;  /* #262220 — raised, warm */
+    --ui-card-foreground: 60 9% 98%;
+    --ui-popover: 20 9% 14%;
+    --ui-popover-foreground: 60 9% 98%;
+    --ui-primary: 317 43% 74%;  /* = --accent  #D9A0C9 */
+    --ui-primary-foreground: 24 10% 10%;
+    --ui-muted: 12 6% 15%;  /* #292524 */
+    --ui-muted-foreground: 24 6% 83%;  /* = --text-secondary  #D6D3D1 */
+    --ui-accent: 12 6% 15%;
+    --ui-accent-foreground: 60 9% 98%;
+    --ui-destructive: 2 78% 73%;  /* = --status-critical  #F08A86 */
+    --ui-destructive-foreground: 24 10% 10%;
+    --ui-border: 30 6% 25%;  /* #44403C */
+    --ui-input: 30 6% 25%;
+    --ui-ring: 317 43% 74%;  /* = --accent */
+  }
+}
+
+:root[data-theme="dark"] {
+  --accent: #D9A0C9;
+  --surface-1: #1C1917;
+  --text-primary: #FAFAF9;
+  --text-secondary: #D6D3D1;
+  --chart-1: #e66767;
+  --chart-2: #3987e5;
+  --chart-3: #c98500;
+  --chart-4: #199e70;
+  --chart-5: #9085e9;
+  --chart-6: #d95926;
+  --chart-grid: #292524;
+  --chart-axis: #A8A29E;
+  --chart-tooltip-border: #44403C;
+  --chart-cursor: #292524;
+  --status-critical: #F08A86;
+  --status-warning: #E0A94A;
+  --status-ok: #5BC98D;
+  --ui-background: 24 10% 10%;  /* = --surface-1  #1C1917 */
+  --ui-foreground: 60 9% 98%;  /* = --text-primary  #FAFAF9 */
+  --ui-card: 20 9% 14%;  /* #262220 — raised, warm */
+  --ui-card-foreground: 60 9% 98%;
+  --ui-popover: 20 9% 14%;
+  --ui-popover-foreground: 60 9% 98%;
+  --ui-primary: 317 43% 74%;  /* = --accent  #D9A0C9 */
+  --ui-primary-foreground: 24 10% 10%;
+  --ui-muted: 12 6% 15%;  /* #292524 */
+  --ui-muted-foreground: 24 6% 83%;  /* = --text-secondary  #D6D3D1 */
+  --ui-accent: 12 6% 15%;
+  --ui-accent-foreground: 60 9% 98%;
+  --ui-destructive: 2 78% 73%;  /* = --status-critical  #F08A86 */
+  --ui-destructive-foreground: 24 10% 10%;
+  --ui-border: 30 6% 25%;  /* #44403C */
+  --ui-input: 30 6% 25%;
+  --ui-ring: 317 43% 74%;  /* = --accent */
+}

@@ -19,7 +19,7 @@ export function Sidebar() {
           href="/executive"
           className="wordmark-shimmer rounded text-[20px] font-extrabold tracking-[-0.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          DermIQ
+          Regimen
         </Link>
       </div>
       <nav className="flex flex-col gap-1 p-3">

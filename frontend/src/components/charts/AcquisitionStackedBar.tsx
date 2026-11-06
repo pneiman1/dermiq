@@ -15,6 +15,7 @@ import {
 import { CHANNEL_COLORS, CHANNEL_ORDER, channelLabel } from "@/lib/channels";
 import { fmtInt } from "@/lib/money";
 import type { AcquisitionByMonthRow } from "@/lib/types";
+import { AXIS_TICK, CHART_GRID, TOOLTIP_STYLE } from "@/lib/chartTokens";
 
 export function AcquisitionStackedBar({ rows }: { rows: AcquisitionByMonthRow[] }) {
   // Pivot the long (month × channel) rows to wide (one row per month).
@@ -32,20 +33,20 @@ export function AcquisitionStackedBar({ rows }: { rows: AcquisitionByMonthRow[] 
     <div className="h-[300px] w-full sm:h-[320px]">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
           <XAxis
             dataKey="month_start"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tick={AXIS_TICK}
             tickLine={false}
             axisLine={false}
             tickFormatter={(d: string) => format(parseISO(d), "MMM ''yy")}
             minTickGap={12}
           />
-          <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} tickLine={false} axisLine={false} width={36} />
+          <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={36} />
           <Tooltip
             formatter={(value: number, name: string) => [fmtInt(value), channelLabel(name)]}
             labelFormatter={(d: string) => format(parseISO(d), "MMMM yyyy")}
-            contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
+            contentStyle={TOOLTIP_STYLE}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} formatter={(value: string) => channelLabel(value)} />
           {CHANNEL_ORDER.map((ch) => (

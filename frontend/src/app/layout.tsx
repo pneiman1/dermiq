@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 
+import "../styles/tokens.css";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Sidebar } from "@/components/Sidebar";
@@ -9,7 +10,7 @@ import { TopBar } from "@/components/TopBar";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "DermIQ",
+  title: "Regimen",
   description: "Analytics intelligence for cosmetic dermatology practices",
 };
 

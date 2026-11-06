@@ -1,3 +1,5 @@
+import { seriesColor } from "@/lib/chartTokens";
+
 // Display labels + chart colors for acquisition channels, shared by the chart,
 // table, KPIs, and callout so they stay consistent.
 
@@ -26,12 +28,16 @@ export const CHANNEL_ORDER = [
   "other",
 ];
 
+// The categorical slots, in CHANNEL_ORDER. There are seven channels and six
+// slots: "other" deliberately takes seriesColor(6), which is the neutral rather
+// than a wrap back to slot one — a repeated hue would make two channels read as
+// the same series, and "other" is the one that should recede.
 export const CHANNEL_COLORS: Record<string, string> = {
-  google_ads: "#0E7490", // teal
-  instagram_meta: "#6366F1", // indigo
-  referral: "#10B981", // emerald
-  realself: "#F59E0B", // amber
-  alle_directory: "#8B5CF6", // violet
-  walkin: "#F43F5E", // rose
-  other: "#64748B", // slate
+  google_ads: seriesColor(0),
+  instagram_meta: seriesColor(1),
+  referral: seriesColor(2),
+  realself: seriesColor(3),
+  alle_directory: seriesColor(4),
+  walkin: seriesColor(5),
+  other: seriesColor(6),
 };

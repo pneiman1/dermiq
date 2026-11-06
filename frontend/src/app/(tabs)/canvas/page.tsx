@@ -31,6 +31,10 @@ const RGLModule = ReactGridLayout as any;
 const GridLayoutCmp = RGLModule.default ?? RGLModule;
 const WidthProvider = RGLModule.WidthProvider ?? GridLayoutCmp.WidthProvider;
 const Grid = WidthProvider(GridLayoutCmp);
+// Deliberately still "dermiq" after the rename to Regimen: this keys saved
+// canvases in a visitor's localStorage, and renaming it would orphan every
+// canvas anyone has already saved. The brand changed; the storage contract
+// did not.
 const LS_KEY = "dermiq.canvas.v1";
 
 // Row span used for every card in the collapsed single-column mobile grid.
@@ -314,7 +318,7 @@ export default function CanvasPage() {
       <div className="mt-4 flex-1 overflow-y-auto pb-56 sm:pb-40">
         {charts.length === 0 && !pendingId ? (
           <div className="flex h-full min-h-[300px] flex-col items-center justify-center text-center">
-            <Sparkles className="h-12 w-12 text-slate-300" />
+            <Sparkles className="h-12 w-12 text-muted-foreground" />
             <p className="mt-3 text-sm text-muted-foreground">
               Type a request below to add your first chart
             </p>
@@ -339,7 +343,7 @@ export default function CanvasPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{chart.spec.title}</p>
                       {chart.reasoning && (
-                        <p className="truncate text-[12px] italic text-slate-500">{chart.reasoning}</p>
+                        <p className="truncate text-[12px] italic text-muted-foreground">{chart.reasoning}</p>
                       )}
                     </div>
                     {/* Always visible on touch (there is no hover to reveal them);
@@ -372,7 +376,7 @@ export default function CanvasPage() {
             {pendingId && (
               <div key={pendingId}>
                 <Card className="flex h-full items-center justify-center overflow-hidden">
-                  <div className="h-full w-full animate-pulse rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900" />
+                  <div className="h-full w-full animate-pulse rounded-lg bg-muted" />
                 </Card>
               </div>
             )}

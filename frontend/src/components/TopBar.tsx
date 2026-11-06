@@ -20,7 +20,7 @@ export function TopBar() {
         href="/executive"
         className="wordmark-shimmer shrink-0 rounded text-[18px] font-extrabold tracking-[-0.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:hidden"
       >
-        DermIQ
+        Regimen
       </Link>
 
       {/* Tenant name — same gradient-clip shimmer as the wordmark but quieter and

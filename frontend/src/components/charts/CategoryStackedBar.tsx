@@ -13,6 +13,7 @@ import {
 } from "recharts";
 
 import { fmtCompactUSD, fmtUSD } from "@/lib/money";
+import { AXIS_TICK, CHART_GRID, TOOLTIP_STYLE, seriesColor } from "@/lib/chartTokens";
 
 export interface CategoryPoint {
   date: string;
@@ -27,12 +28,14 @@ export interface CategoryPoint {
 // Ordered largest → smallest so the stack hierarchy is stable (injectable bottom).
 // Distinct (muted) hues so six segments are actually distinguishable.
 const SERIES: { key: keyof Omit<CategoryPoint, "date">; label: string; color: string }[] = [
-  { key: "injectable", label: "Injectable", color: "#0E7490" }, // clinical teal (primary)
-  { key: "device", label: "Energy device", color: "#6366F1" }, // indigo-500
-  { key: "skincare", label: "Skincare", color: "#F59E0B" }, // amber-500
-  { key: "surgical", label: "Surgical", color: "#F43F5E" }, // rose-500
-  { key: "membership", label: "Membership", color: "#8B5CF6" }, // violet-500
-  { key: "consult", label: "Consult", color: "#64748B" }, // slate-500
+  // The six categorical slots, in their fixed order. Not shades of the brand,
+  // and never cycled — there are exactly six categories and exactly six slots.
+  { key: "injectable", label: "Injectable", color: seriesColor(0) },
+  { key: "device", label: "Energy device", color: seriesColor(1) },
+  { key: "skincare", label: "Skincare", color: seriesColor(2) },
+  { key: "surgical", label: "Surgical", color: seriesColor(3) },
+  { key: "membership", label: "Membership", color: seriesColor(4) },
+  { key: "consult", label: "Consult", color: seriesColor(5) },
 ];
 
 export function CategoryStackedBar({ data }: { data: CategoryPoint[] }) {
@@ -40,17 +43,17 @@ export function CategoryStackedBar({ data }: { data: CategoryPoint[] }) {
     <div className="h-[260px] w-full sm:h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tick={AXIS_TICK}
             tickLine={false}
             axisLine={false}
             tickFormatter={(d: string) => format(parseISO(d), "MMM d")}
             minTickGap={16}
           />
           <YAxis
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            tick={AXIS_TICK}
             tickLine={false}
             axisLine={false}
             width={64}
@@ -59,7 +62,7 @@ export function CategoryStackedBar({ data }: { data: CategoryPoint[] }) {
           <Tooltip
             formatter={(value: number, name: string) => [fmtUSD(String(value), { dp: 0 }), name]}
             labelFormatter={(d: string) => format(parseISO(d), "EEE, MMM d")}
-            contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
+            contentStyle={TOOLTIP_STYLE}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
           {SERIES.map((s) => (

@@ -12,6 +12,7 @@ import {
 } from "recharts";
 
 import type { CanvasRow, LineSpec } from "@/lib/types";
+import { AXIS_TICK, CHART_GRID, TOOLTIP_STYLE, seriesColor } from "@/lib/chartTokens";
 
 const NoData = () => (
   <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
@@ -19,9 +20,8 @@ const NoData = () => (
   </div>
 );
 
-const AXIS_TICK = { fill: "#94a3b8", fontSize: 12 };
-const TOOLTIP_STYLE = { borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 } as const;
-const PALETTE = ["#0E7490", "#6366F1", "#F59E0B", "#F43F5E", "#8B5CF6", "#64748B"];
+// seriesColor does not wrap past the sixth slot; it returns a neutral instead,
+// because two series sharing a hue makes the legend stop being a key.
 
 function fmtNumber(n: number): string {
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
@@ -40,7 +40,7 @@ export function LineChart({ spec, data }: { spec: LineSpec; data: CanvasRow[] })
   return (
     <ResponsiveContainer width="100%" height="100%">
       <RLineChart data={parsed} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
         <XAxis
           dataKey={spec.x}
           tick={AXIS_TICK}
@@ -62,7 +62,7 @@ export function LineChart({ spec, data }: { spec: LineSpec; data: CanvasRow[] })
             key={m}
             type="monotone"
             dataKey={m}
-            stroke={PALETTE[i % PALETTE.length]}
+            stroke={seriesColor(i)}
             strokeWidth={2}
             dot={false}
           />

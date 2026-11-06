@@ -12,6 +12,7 @@ import {
 
 import { fmtCompactUSD } from "@/lib/money";
 import type { BarSpec, CanvasRow } from "@/lib/types";
+import { AXIS_TICK, CHART_ACCENT, CHART_CURSOR, CHART_GRID, TOOLTIP_STYLE } from "@/lib/chartTokens";
 
 const NoData = () => (
   <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
@@ -19,8 +20,6 @@ const NoData = () => (
   </div>
 );
 
-const AXIS_TICK = { fill: "#94a3b8", fontSize: 12 };
-const TOOLTIP_STYLE = { borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 } as const;
 
 function truncate(v: unknown): string {
   const s = String(v ?? "");
@@ -44,7 +43,7 @@ export function BarChart({ spec, data }: { spec: BarSpec; data: CanvasRow[] }) {
         layout={horizontal ? "vertical" : "horizontal"}
         margin={{ top: 8, right: 16, bottom: horizontal ? 0 : 24, left: 8 }}
       >
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
         {horizontal ? (
           <>
             <XAxis
@@ -87,8 +86,8 @@ export function BarChart({ spec, data }: { spec: BarSpec; data: CanvasRow[] }) {
             />
           </>
         )}
-        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "#f1f5f9" }} />
-        <Bar dataKey={spec.y} fill="#0E7490" radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: CHART_CURSOR }} />
+        <Bar dataKey={spec.y} fill={CHART_ACCENT} radius={horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} />
       </RBarChart>
     </ResponsiveContainer>
   );
