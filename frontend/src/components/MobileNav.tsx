@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 
 import { NAV } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/BrandMark";
 
 /**
  * Hamburger + slide-in drawer for <lg viewports. Lives in the TopBar so the trigger
@@ -68,9 +69,10 @@ export function MobileNav() {
         <div className="flex h-14 shrink-0 items-center justify-between px-4">
           <Link
             href="/executive"
-            className="wordmark-shimmer rounded text-[20px] font-extrabold tracking-[-0.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="group flex items-center gap-2 rounded text-[20px] font-extrabold tracking-[-0.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            Regimen
+            <BrandMark className="h-[18px] w-[18px] shrink-0 -translate-y-px text-primary" />
+            <span className="wordmark-shimmer">Regimen</span>
           </Link>
           <button
             type="button"

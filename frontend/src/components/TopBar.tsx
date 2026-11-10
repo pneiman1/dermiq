@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { MobileNav } from "./MobileNav";
 import { ThemeToggle } from "./ThemeToggle";
+import { BrandMark } from "@/components/BrandMark";
 
 export function TopBar() {
   const { data } = useQuery({ queryKey: ["tenant"], queryFn: api.getTenant });
@@ -18,9 +19,10 @@ export function TopBar() {
           drawer, so the header carries it instead. */}
       <Link
         href="/executive"
-        className="wordmark-shimmer shrink-0 rounded text-[18px] font-extrabold tracking-[-0.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:hidden"
+        className="group flex items-center gap-2 rounded shrink-0 rounded text-[18px] font-extrabold tracking-[-0.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:hidden"
       >
-        Regimen
+        <BrandMark className="h-[18px] w-[18px] shrink-0 -translate-y-px text-primary" />
+        <span className="wordmark-shimmer">Regimen</span>
       </Link>
 
       {/* Tenant name — same gradient-clip shimmer as the wordmark but quieter and

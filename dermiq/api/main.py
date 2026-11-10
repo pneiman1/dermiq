@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
         log.info("api_shutdown")
 
 
-app = FastAPI(title="DermIQ API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Regimen API", version="1.0.0", lifespan=lifespan)
 
 # Rate limiter state and exception handler.
 app.state.limiter = limiter

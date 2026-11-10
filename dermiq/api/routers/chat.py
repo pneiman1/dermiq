@@ -30,7 +30,7 @@ limiter = Limiter(key_func=get_remote_address)
 TOP_K = 6
 
 SYSTEM_PROMPT = (
-    "You are DermIQ's analytics assistant for a cosmetic-dermatology practice. You answer "
+    "You are Regimen's analytics assistant for a cosmetic-dermatology practice. You answer "
     "the practice owner's questions about their business using ONLY the context documents "
     "provided with each question.\n\n"
     "Guardrails:\n"

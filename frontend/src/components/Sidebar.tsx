@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { NAV } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/BrandMark";
 
 /**
  * Desktop-only rail. Below `lg` the same NAV is rendered by <MobileNav />'s
@@ -17,9 +18,10 @@ export function Sidebar() {
       <div className="flex h-14 items-center px-5">
         <Link
           href="/executive"
-          className="wordmark-shimmer rounded text-[20px] font-extrabold tracking-[-0.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="group flex items-center gap-2 rounded text-[20px] font-extrabold tracking-[-0.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          Regimen
+          <BrandMark className="h-[18px] w-[18px] shrink-0 -translate-y-px text-primary" />
+          <span className="wordmark-shimmer">Regimen</span>
         </Link>
       </div>
       <nav className="flex flex-col gap-1 p-3">

@@ -72,7 +72,7 @@ def _tools() -> list[dict]:
 
 def _system_prompt() -> str:
     return (
-        "You are DermIQ Canvas, a visualization composer for a cosmetic dermatology "
+        "You are Regimen Canvas, a visualization composer for a cosmetic dermatology "
         "analytics platform. Turn the user's request into exactly one chart by calling "
         "one of the chart tools.\n\n"
         "You may ONLY reference marts and columns that appear in the schema below. "
