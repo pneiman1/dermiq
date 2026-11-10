@@ -1,19 +1,22 @@
 /**
- * Three ascending dots — a course of treatment over time — the wordmark's corner mark.
+ * Regimen — three ascending dots, a course of treatment over time.
  *
- * Left to right they rise and grow: 2.0, 2.2 and 2.4 radius at falling
- * baselines. The growth is what stops it reading as a generic ellipsis — a
- * course of treatment is a sequence that builds, not three equal marks.
+ * Left to right they rise and grow: 2.0, 2.3 and 2.6 radius on a falling
+ * baseline. Both the rise and the growth are load-bearing — at equal size the
+ * same three dots read as an ellipsis rather than as a course that builds.
  *
- * One <path>, no fill colour of its own: it paints with `currentColor`, so the
- * caller sets the hue with a text utility and the token cascade handles both
- * themes. It cannot live *inside* the wordmark link's text span — that span is
- * `wordmark-shimmer`, which sets `color: transparent` to clip a gradient to the
- * glyphs, and a currentColor mark inside it would vanish.
+ * Filled, because dots are dots. The nav icons beside it are stroked lucide,
+ * but three stroked rings read as bubbles rather than as a progression.
  *
- * Sized in the caller. The -1px nudge is optical, not geometric: the mark's
- * visual mass sits slightly below the cap height of an extrabold wordmark, and
- * flex centring alone leaves it reading a touch low.
+ * `currentColor` throughout, so the caller sets the hue with a text utility
+ * and the token cascade handles both themes. It cannot live *inside* the
+ * wordmark's text span — that span is `wordmark-shimmer`, which sets
+ * `color: transparent` to clip a gradient to the glyphs, and a currentColor
+ * mark inside it would vanish.
+ *
+ * Sized by the caller. The -1px nudge is optical, not geometric: the mark's
+ * visual mass sits slightly below the cap height of an extrabold wordmark, so
+ * flex centring alone leaves it reading low.
  */
 export function BrandMark({ className }: { className?: string }) {
   return (
@@ -24,7 +27,7 @@ export function BrandMark({ className }: { className?: string }) {
       className={className}
       fill="currentColor"
     >
-      <path d="M5 19a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm7-3a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4zm7-3.6a2.4 2.4 0 1 1 0-4.8 2.4 2.4 0 0 1 0 4.8z" />
+      <path d="M4.6 20.4a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm7.4-3.6a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6zm7.4-4a2.6 2.6 0 1 1 0-5.2 2.6 2.6 0 0 1 0 5.2z" />
     </svg>
   );
 }
