@@ -1,0 +1,22 @@
+{
+  "comment": "No invoice date survived the scan, so the cost has no accounting period of its own.",
+  "confidence": 0.9,
+  "invoice": {
+    "supplier_id": "sup_gw_malting",
+    "invoice_number": "GW-5602",
+    "invoice_date": "",
+    "currency": "USD",
+    "total": "880.00",
+    "line_items": [
+      {
+        "line_number": 1,
+        "description": "Munich malt, 44 vial sacks",
+        "quantity": "22",
+        "unit": "sack",
+        "unit_cost": "40.00",
+        "total_cost": "880.00",
+        "gl_account_code": "5020"
+      }
+    ]
+  }
+}

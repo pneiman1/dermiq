@@ -1,0 +1,26 @@
+{
+  "status": "needs_review",
+  "confidence": 0.42,
+  "review": {
+    "flagged": true,
+    "reasons": ["low_confidence_on_total", "handwritten_amendment"]
+  },
+  "invoice": {
+    "supplier_id": "sup_gw_malting",
+    "invoice_number": "GW-5521",
+    "invoice_date": "2026-09-15",
+    "currency": "USD",
+    "total": "2100.00",
+    "line_items": [
+      {
+        "line_number": 1,
+        "description": "2-row pale malt, 44 vial sacks",
+        "quantity": "60",
+        "unit": "sack",
+        "unit_cost": "35.00",
+        "total_cost": "2100.00",
+        "gl_account_code": "5020"
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "comment": "The service was confident and the arithmetic still does not work: a line was dropped off the scan. Lands pending, never as cost.",
+  "confidence": 0.97,
+  "invoice": {
+    "supplier_id": "sup_allergan_aesthetics",
+    "invoice_number": "AA-88131",
+    "invoice_date": "2026-09-30",
+    "currency": "USD",
+    "total": "1500.00",
+    "line_items": [
+      {
+        "line_number": 1,
+        "description": "Mosaic pellets, 2026 harvest",
+        "quantity": "50",
+        "unit": "vial",
+        "unit_cost": "20.00",
+        "total_cost": "1000.00",
+        "gl_account_code": "5010"
+      }
+    ]
+  }
+}
