@@ -1,0 +1,30 @@
+{
+  "confidence": 0.98,
+  "invoice": {
+    "supplier_id": "sup_allergan_aesthetics",
+    "invoice_number": "AA-88120",
+    "invoice_date": "2026-09-28",
+    "currency": "USD",
+    "total": "4812.50",
+    "line_items": [
+      {
+        "line_number": 1,
+        "description": "BOTOX Cosmetic 100U vial, 2026 harvest",
+        "quantity": "250",
+        "unit": "vial",
+        "unit_cost": "17.25",
+        "total_cost": "4312.50",
+        "gl_account_code": "5010"
+      },
+      {
+        "line_number": 2,
+        "description": "Refrigerated freight",
+        "quantity": "1",
+        "unit": "shipment",
+        "unit_cost": "500.00",
+        "total_cost": "500.00",
+        "gl_account_code": "5090"
+      }
+    ]
+  }
+}

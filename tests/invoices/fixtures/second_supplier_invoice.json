@@ -1,0 +1,21 @@
+{
+  "confidence": 0.99,
+  "invoice": {
+    "supplier_id": "sup_gw_malting",
+    "invoice_number": "GW-5540",
+    "invoice_date": "2026-09-22",
+    "currency": "USD",
+    "total": "1260.00",
+    "line_items": [
+      {
+        "line_number": 1,
+        "description": "Vienna malt, 44 vial sacks",
+        "quantity": "36",
+        "unit": "sack",
+        "unit_cost": "35.00",
+        "total_cost": "1260.00",
+        "gl_account_code": "5020"
+      }
+    ]
+  }
+}
